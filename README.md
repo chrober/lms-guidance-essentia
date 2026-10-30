@@ -1,9 +1,13 @@
 # Bliss Guidance: Essentia (Lyrion provider)
 
-**Status: installation/integration design only; no installable functional plugin is shipped or activated.**
+**Status: Lyrion plugin remains design-only and is not installable. The separate native [Essentia Guidance Draft PR #1](https://github.com/chrober/bliss-guidance-essentia/pull/1) now contains a real, tested, shadow-neutral SPI v2 executable. It emits no active Guidance signals and has not been packaged or connected to Lyrion hosts.**
 
 A future independently installable, passive Lyrion guidance provider, following the conventions of [`lms-guidance-lastfm`](https://github.com/chrober/lms-guidance-lastfm) and [`lms-guidance-library-signals`](https://github.com/chrober/lms-guidance-library-signals). It will expose an optional [`bliss-guidance-essentia`](https://github.com/chrober/bliss-guidance-essentia) native provider using the host-independent [`essentia-similarity`](https://github.com/chrober/essentia-similarity) engine to compatible Lyrion hosts: [BlissMixerLab](https://github.com/chrober/lms-blissmixer-lab) first, then [Better Call Bliss](https://github.com/chrober/lms-better-call-bliss).
 
 Lyrion hosts discover installed guidance providers, keep them opt-in, resolve trusted configuration and invoke native hosts implementing the [`bliss-playlist-guidance-spi`](https://github.com/chrober/bliss-playlist-guidance-spi) version 2. This plugin must **not** modify an already-playing queue, accept unauthorized database paths from browser input, fetch ONNX models during playback, or bypass Bliss admission/repeat/route constraints.
 
 This repository is the Lyrion configuration/packaging surface, **not the provider-side Rust scoring implementation**. Consult [integration and acceptance contract](docs/lyrion-provider-contract.md) before implementation. Start from [`lms-bliss-guidance-provider-kit`](https://github.com/chrober/lms-bliss-guidance-provider-kit) and the current working Library Signals provider rather than reinventing discovery or settings UI.
+
+## Current practical integration blocker
+
+Source inspection of `lms-blissmixer-lab/BlissMixerLab/GuidanceProviderAdapter.pm` (30 Oct 2026) confirms that the current SPI candidate envelope sets `database_file => undef`, while the available candidate identities include the LMS URL and `urlmd5`. Neither value is automatically the scanner sidecar's exact `feature_tracks.track_file`. The native provider now requires a trusted, host-created SHA-256-bound `essentia-exact-track-keys-v1` artifact with the exact source and candidate mappings. **This plugin must not claim availability until the host mapping is implemented.** See [native provider README](https://github.com/chrober/bliss-guidance-essentia/blob/feat/essentia-guidance-integration-design/README.md) and [Lyrion provider contract](docs/lyrion-provider-contract.md).
