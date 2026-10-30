@@ -1,6 +1,6 @@
 # Lyrion Essentia Guidance: required plugin contract
 
-**Status (30 Oct 2026): architecture / unimplemented; no Plugin.pm, Settings.pm, Perl registration, packaged native binary or releases yet.**
+**Status (30 Oct 2026): Lyrion plugin remains architecture-only — no Plugin.pm, Settings.pm, Perl registration, packaged binary or release. The separate native [bliss-guidance-essentia Draft PR #1](https://github.com/chrober/bliss-guidance-essentia/pull/1) now implements a real research-only SPI v2 JSONL process and SQLite-v3 shadow comparisons with zero active signals. Current Lab SPI candidate metadata (`database_file => undef`) is insufficient for exact sidecar mapping; host resolver/artifact generation remains an explicit prerequisite.**
 
 ## Stable dependency boundary
 
@@ -49,3 +49,7 @@ Native binary package provenance and individual third-party Essentia/ONNX licens
 6. **Personal P6:** separately fitted and independently calibrated personal scorer with real opt-in, 0–100% influence and full-query fallback, not a reuse of legacy 23D learnedblend.
 
 **CI acceptance once implemented:** correct provider discovery and versioned descriptor, read-only source connection, known absent native binary marked unavailable, host opt-in defaults, host overrides, strict native executable selection, no unauthorized network/DB/queue writes, SPI transcript tests, cross-platform and low-power runtime observations. Nothing in this document is a claim of a working provider.
+
+### Integration status update — executable native provider exists, but is not yet usable by Lyrion
+
+The native provider now implements `describe → prepare → score → close` against the canonical version-pinned SPI crate with a trusted SHA-256-bound exact-key identity artifact and read-only SQLite v3 source. The `essentia_experimental_shadow` channel advertises no active host policy; **all scores return `signals=[]`**, and aggregate-only diagnostics distinguish full evaluated shadow batches from neutral fallback. It is not yet a scored player plugin, and neither BlissMixerLab nor Better Call Bliss currently supplies the required exact identity artifact; `lms_urlmd5` alone is not an exact `feature_tracks.track_file`. The next Lyrion implementation should reference the existing provider kit, make the provider disabled-by-default/unavailable until identities and package exist, and add tests proving no playlist/queue changes. Never mark a provider installed or ready merely because the native Rust binary compiles.
