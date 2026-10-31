@@ -25,6 +25,22 @@ by default. There is no library scan listener, scheduled job, remote
 download, automatic native startup, release archive or plugin-repository
 feed entry.
 
+### CI-produced test ZIP (research only)
+
+The [provider research-branch CI workflow]
+(https://github.com/chrober/lms-guidance-essentia/actions/workflows/provider-identity-tests.yml)
+has a `stage-passive-plugin` job. It creates the temporary
+`essentia-guidance-passive-staging` Actions artifact containing a
+`essentia-guidance-passive-staging.zip` package with only
+`Plugins/EssentiaGuidance/` files (and `Bin/SOURCE.md`, **no**
+native executable). It is retained for seven days. Download the
+artifact from the **specific PR workflow run**, not a release or
+`main` branch; inspect the SHA shown in the workflow run first.
+
+The package is a staging convenience, **not** a GitHub release,
+published plugin repository or an automatically installable LMS update.
+Extract it only under an isolated, user-authorized LMS test instance.
+
 ## Staging an isolated Lyrion instance
 
 Use a separate Lyrion staging installation with its own config/cache
@@ -51,7 +67,7 @@ production Pi's `Plugins` directory.
    `chrober/bliss-guidance-essentia` executable from a pinned,
    reviewed research commit for the staging architecture. Verify
    `version --json` gives `essentia-guidance` / SPI 2. Do not
-   redistribute native binaries until the separate GPL/Essen­tia/ONNX
+   redistribute native binaries until the separate GPL/Essentia/ONNX
    dependency and licensing review is approved.
 
 This staging workflow does **not** yet prove that the actual LMS
