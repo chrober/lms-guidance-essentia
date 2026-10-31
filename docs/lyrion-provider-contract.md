@@ -1,5 +1,20 @@
 # Lyrion Essentia Guidance: required plugin contract
 
+## Architecture correction: existing SPI only (31 October 2026)
+
+`lms-blissmixer-lab` must **never know about Essentia**. The provider's
+own Lyrion plugin must prepare Essentia-specific trusted SPI artifacts and
+read-only resources using the normal provider-kit factory. The generic
+host invokes its native SPI v2 runtime with unchanged seeds/candidates.
+No direct native transcript runner, SQL feature decoding or Essentia root
+logic belongs in Lab. The first provider-only identity and bounded
+SQLite helper modules are implemented and tested here, but do not have
+authoritative joint scan-generation or multi-root attestation yet.
+
+See [full 31 October architecture and safety gates]
+(provider-owned-spi-shadow-20261031.md). Existing historical host-resolver
+notes below are design context, not permission to couple Lab to Essentia.
+
 **Status (30 Oct 2026): Lyrion plugin remains architecture-only — no Plugin.pm, Settings.pm, Perl registration, packaged binary or release. The separate native [bliss-guidance-essentia Draft PR #1](https://github.com/chrober/bliss-guidance-essentia/pull/1) now implements a real research-only SPI v2 JSONL process and SQLite-v3 shadow comparisons with zero active signals. Current Lab SPI candidate metadata (`database_file => undef`) is insufficient for exact sidecar mapping; host resolver/artifact generation remains an explicit prerequisite.**
 
 ## Stable dependency boundary
