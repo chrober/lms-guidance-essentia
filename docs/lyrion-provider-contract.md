@@ -1,5 +1,24 @@
 # Lyrion Essentia Guidance: required plugin contract
 
+## Offline content provenance across multiple roots — 31 October 2026
+
+The provider now has an optional **offline-only** SHA-256 source attestor:
+
+- Reads the existing scanner SQLite-v3 `audio_sha256`, `feature_track_state`
+  and validated model fingerprint; hashes the actual full local audio files.
+- Accepts distinct music roots only when every chosen track has exactly
+  one owning root and no other configured root contains the same
+  relative scanner key.
+- A separate `verify_audio_content => 1` research mode composes this
+  proof into the existing bounded SQLite resource and SHA-256-bound
+  native SPI artifact. Full two-root `describe/prepare/score/close`
+  integration tests pass against the unchanged Rust binary.
+- **Never** interprets matching hashes as an authoritative shared
+  Lyrion/Essentia scan generation. Normal provider status remains
+  unavailable; full-file hashing is not permitted in a live mixer call.
+
+[Proof, negative tests, CI evidence and remaining requirements]
+(audio-content-provenance-20261031.md).
 ## Architecture correction: existing SPI only (31 October 2026)
 
 `lms-blissmixer-lab` must **never know about Essentia**. The provider's
