@@ -112,6 +112,13 @@ is_deeply([map { $_->{track_file} } @$routed_rows], \@keys,
     'host route token binding retains exactly verified original source file keys');
 is(sha256_hex($routed_bytes), $routed->{sha256},
     'route-token artifact remains immutable and SHA-256 integrity-addressed');
+is($routed_rows->[0]{source_url}, $seed->url,
+    'SHA-256-pinned host route proof preserves the original Lyrion source URL');
+is($routed_rows->[0]{lms_urlmd5}, $seed->urlmd5,
+    'SHA-256-pinned host route proof preserves the independently checked urlmd5');
+ok(!exists($routed_rows->[1]{source_url})
+       && !exists($routed_rows->[2]{lms_urlmd5}),
+    'candidate artifact rows cannot acquire host-only seed provenance');
 
 sub rejects {
     my ($name, %overrides) = @_;
