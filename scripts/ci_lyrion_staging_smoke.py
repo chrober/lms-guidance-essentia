@@ -2,6 +2,9 @@
 """Smoke-check a genuine isolated Lyrion process; no players/music needed.
 
 The plugin is installed in a throwaway /config/cache/Plugins tree and remains
+from collections import deque
+from html.parser import HTMLParser
+from urllib.parse import urljoin, urlparse
 disabled by default. It must appear in the real Lyrion plugin manager without
 being selected for native Guidance scoring.
 """
@@ -46,35 +49,70 @@ while time.monotonic() < DEADLINE:
 else:
     sys.exit("FAIL: real Lyrion server never became ready (120s)")
 
-# Default Lyrion Web skin handles plugins.html. A disabled-by-default
-# plugin should appear on this management page, but its settings do not
-# activate a native scoring process.
-urls = [
+# Follow only the real settings links provided by the Lyrion Default skin.
+# Do not assume a historical plugin-manager route exists in LMS 9.1.
+class Links(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.links = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "a":
+            self.links.extend(value for name, value in attrs if name == "href" and value)
+
+
+seeds = [
+    "/Default/",
+    "/Default/settings/index.html",
+    "/Default/settings/server/index.html",
+    "/Default/settings/server/plugins.html",
     "/Default/settings/plugins.html",
     "/settings/plugins.html",
-    "/Default/settings/plugins.html?player=",
-    "/Default/",
 ]
+queue = deque((x, 0) for x in seeds)
+visited = set()
 found = False
-for url in urls:
+while queue and len(visited) < 35:
+    url, depth = queue.popleft()
+    if url in visited:
+        continue
+    visited.add(url)
     try:
-        status, final_url, html = fetch(url)
+        status, final_url, body = fetch(url)
     except (HTTPError, URLError, TimeoutError, OSError) as err:
         print(f"INFO: page {url}: {err}")
         continue
     matches = [
         name for name in ("EssentiaGuidance", "Essentia (research)",
                           "PLUGIN_ESSENTIAGUIDANCE_NAME")
-        if name.lower() in html.lower()
+        if name.lower() in body.lower()
     ]
-    print(f"INFO: management page {url} -> {status}, {len(html)} bytes, matches={matches}")
+    print(f"INFO: page {url} -> {status}, {len(body)} bytes, matches={matches}")
     if matches:
         found = True
-        print("PASS: actual Lyrion Web/PluginManager lists staged Essentia plugin")
+        print("PASS: actual Lyrion Web/PluginManager lists the staged plugin")
         break
+    if depth >= 3:
+        continue
+    parser = Links()
+    parser.feed(body)
+    discovered = []
+    for link in parser.links:
+        parsed = urlparse(urljoin(final_url, link))
+        if parsed.scheme != "http" or parsed.netloc != "127.0.0.1:19092":
+            continue
+        if not any(word in parsed.path.lower() for word in ("setting", "plugin")):
+            continue
+        next_url = parsed.path + (("?" + parsed.query) if parsed.query else "")
+        discovered.append(next_url)
+    print(f"INFO: linked settings paths: {discovered[:16]}")
+    for link in discovered[:20]:
+        if link not in visited:
+            queue.append((link, depth + 1))
 
 if not found:
-    sys.exit("FAIL: staged plugin absent from actual Lyrion plugin-manager Web output")
+    sys.exit("FAIL: staged plugin not visible in examined real Lyrion management pages")
+
 
 # A default-disabled plugin must never be implicitly launched by the
 # real server. Assertions on the source contract are already separate
