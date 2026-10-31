@@ -36,9 +36,17 @@ jobs:
           ref: de72433d9c690e1aa46e973bbcca63691e959df8
           path: _native_provider
           persist-credentials: false
+      - name: Checkout corrected generic SPI-v2 Perl host (research PR SHA only)
+        uses: actions/checkout@v4
+        with:
+          repository: chrober/lms-bliss-guidance-host
+          ref: d05a043bf5fa74e2e166fa9c8be8d15761f353f7
+          path: _shared_host
+          persist-credentials: false
       - name: Build native SPI-v2 provider for real JSONL contract verification
         run: cargo build --manifest-path _native_provider/Cargo.toml --bin bliss-guidance-essentia
       - name: Verify provider-owned resources against the native SPI-v2 process
         env:
           ESSENTIA_NATIVE_SPI_BIN: ${{ github.workspace }}/_native_provider/target/debug/bliss-guidance-essentia
+          ESSENTIA_SHARED_HOST_SRC: ${{ github.workspace }}/_shared_host
         run: prove -lv tests/spi_resource_native_jsonl.t tests/imported_sidecar_pilot.t
