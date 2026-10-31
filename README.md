@@ -1,5 +1,32 @@
 # Bliss Guidance: Essentia (Lyrion provider)
 
+## Progress: discoverable API facade and SPI resource assembly
+
+Research implementation on Draft PR #1 now contains:
+
+- `EssentiaGuidance/Plugin.pm` and `Provider.pm`: ordinary Lyrion
+  `guidance_provider_*_v1` discovery and SPI-v2 metadata, based on the
+  existing provider kit. The provider **always reports unavailable**
+  (`source_generation_and_root_provenance_unverified`) and its native
+  configuration factory always rejects calls. No special host API exists.
+- `SpiResourceBundle.pm`: **offline research-only** composition of the
+  provider's exact-key verifier and bounded SQLite-v3 projection into
+  ordinary SPI `prepare.artifacts` and `prepare.resources`, with one
+  unchanged global seed, 2–50 host-admitted candidates and pinned model.
+  The caller owns temporary resource cleanup; no subprocess is started
+  by this module.
+- Contract and negative tests cover false trust flags, unverified roots,
+  missing features, strict resource bounds, source read-only behavior
+  and canonical JSONL transport with the independent native provider.
+
+**This is not an installable or functional Lyrion plugin**: no
+`install.xml`, settings UI, release binary, authoritative source-generation
+proof or multi-root source witness has been added. The positive research
+fixture has no authority to activate production status or influence playback.
+
+See [SPI-only provider ownership and gates]
+(docs/provider-owned-spi-shadow-20261031.md).
+
 ## Architecture correction (31 October 2026)
 
 **BlissMixerLab is provider-neutral.** The Lyrion plugin in this repository,
