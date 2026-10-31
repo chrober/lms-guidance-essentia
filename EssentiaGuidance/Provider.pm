@@ -11,6 +11,7 @@ sub guidance_provider_descriptor_v1 {
         protocol_version => 1,
         provider_id => 'essentia',
         display_name => 'Bliss Guidance: Essentia (research)',
+        settings_uri => 'plugins/EssentiaGuidance/settings/essentiaguidance.html',
         capabilities => ['essentia_experimental_shadow'],
         scopes => ['global_candidate'],
         settings_schema_version => 1,
