@@ -1,8 +1,10 @@
 # Provider-owned SPI integration boundary and read-only data proof (31 October 2026)
 
 **Status: experimental helper code on the provider's Draft PR #1.**
-No `Plugin.pm` registration, distributable package, native spawn, host
-connection, playback influence or installed Lyrion provider exists.
+A `Plugin.pm`/`Provider.pm` discovery facade exists on this research branch, but
+there is **no install manifest, runtime enablement, distributable package,
+production native invocation, host connection or playback influence**. The
+factory always refuses requests because cross-source provenance is unverified.
 
 ## Architectural contract
 
@@ -72,9 +74,10 @@ runner inside a provider plugin.
    must be bound to an authoritative host scan generation and root map,
    with per-track freshness checks; `PRAGMA data_version`, file mtimes
    and matching `TracksV2.File` strings are insufficient.
-4. **Native SPI config factory.** Implement the normal provider-kit
-   `guidance_provider_*_v1` registration and factory only after the
-   above trust contracts exist. `prepare.artifacts` must include the
+4. **Native SPI config factory.** A normal provider-kit
+   `guidance_provider_*_v1` API facade now exists but always reports
+   unavailable and rejects native configuration. Enable the factory
+   only after the above trust contracts exist. `prepare.artifacts` must include the
    exact-key artifact and `prepare.resources` only the sealed read-only
    feature projection. The host passes unchanged seed and candidates
    through `anchors`, `context` and `candidates`.
@@ -103,3 +106,30 @@ that the minimal resource format was accepted; the native executable
 and its own independent tests remain in `bliss-guidance-essentia`.
 No such private provider native tests or binary builds are needed in
 the generic Lab host CI.
+
+## 31 October: provider-owned SPI envelope integration verified
+
+`EssentiaGuidance/SpiResourceBundle.pm` now composes the exact-key identity
+artifact and the bounded readonly SQLite-v3 projection into ordinary
+`prepare.artifacts` / `prepare.resources` plus the canonical flattened
+`Anchor` and unchanged global candidate cohort. This helper requires explicit
+`research_only=1`, is **not** invoked by the public Provider factory and
+cannot attest a common scan generation. A caller must remove its private
+temporary directory after the SPI transaction.
+
+The offline fixture in `tests/spi_resource_bundle.t` verifies errors,
+resource bounds and identity matching. The new
+`tests/spi_resource_native_jsonl.t` exercises the independent Rust native
+process through all four canonical SPI-v2 requests using the projected
+resource. The native code reports `shadow_evaluated_no_active_signals`, with
+zero active guidance signals and no path disclosure. [CI run 41197043974]
+(https://github.com/chrober/lms-guidance-essentia/actions/runs/41197043974)
+passed 94 isolated Perl checks plus 12 real-process SPI assertions.
+
+The initial test also detected that `Anchor.track` is represented by a
+**flattened** candidate in the canonical SPI-v2 JSON envelope; the fixture
+was corrected and rerun successfully. No protocol change was required.
+
+**Next gate:** authoritative proof of host catalogue generation, actual
+decoded file/source root, and scanner model freshness, including multi-root
+collisions. These are not covered by the synthetic SPI success.
