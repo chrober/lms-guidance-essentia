@@ -86,10 +86,20 @@ my $bundle = Plugins::EssentiaGuidance::SpiResourceBundle::assemble_research_bun
     research_only => 1, verify_audio_content => 1, directory => $dir,
     bliss_db => $bliss_path, feature_db => $features_path,
     media_dirs => [$root_a, $root_b],
+    catalog_roots => [
+        {root_id => 'host-root-a', host_path => $root_a},
+        {root_id => 'host-root-b', host_path => $root_b},
+    ],
     anchors => [$tracks[0]], candidates => [@tracks[1,2]],
     model_id => 'genre', metric => 'affine_cosine_v1',
     expected_model_key => 'model-pin', job_id => 'native-fixture-job',
 );
+is($bundle->{catalog_fingerprint}{eligible_tracks}, 3,
+    'provider verified full host-admitted Bliss catalog before native prepare');
+like($bundle->{catalog_fingerprint}{fingerprint_sha256},
+    qr/\A[a-f0-9]{64}\z/, 'catalog and root map fingerprint bound to bundle');
+ok(!$bundle->{catalog_fingerprint}{generation_verified},
+    'no synthetic Lyrion generation attestation is fabricated');
 is($bundle->{audio_content_audit}{verified_count}, 3,
     'native bundle attests all original audio bytes against scanner SHA256');
 is($bundle->{audio_content_audit}{music_root_count}, 2,
@@ -157,5 +167,31 @@ unlike($output, qr/file:\/\/|\/music\/|model-pin|\.flac/,
     'native response discloses no private file IDs or source paths');
 ok(!Plugins::EssentiaGuidance::Provider::guidance_provider_status_v1()->{available},
     'test-only exchange does not activate actual Lyrion provider');
+
+# Reopen after a separate catalog update: original admission cannot be
+# misrepresented as still current, even though the native SPI succeeded.
+my $writer = DBI->connect("dbi:SQLite:dbname=$bliss_path", '', '',
+    {RaiseError => 1, AutoCommit => 1});
+$writer->do('INSERT INTO TracksV2 VALUES (?,0)', undef, 'late-catalog-entry.flac');
+$writer->disconnect;
+require 'EssentiaGuidance/CatalogFingerprint.pm';
+my $post_run = eval {
+    Plugins::EssentiaGuidance::CatalogFingerprint::assert_fresh(
+        research_only => 1, bliss_db => $bliss_path,
+        roots => [
+            {root_id => 'host-root-a', host_path => $root_a},
+            {root_id => 'host-root-b', host_path => $root_b},
+        ],
+        expected => {
+            kind => $bundle->{catalog_fingerprint}{kind},
+            fingerprint_sha256 => $bundle->{catalog_fingerprint}{fingerprint_sha256},
+            catalog_sha256 => '0' x 64,
+            host_root_map_sha256 => '0' x 64,
+            eligible_tracks => 3,
+        },
+    );
+    1;
+};
+ok(!$post_run, 'subsequent catalog change invalidates stored admission fingerprint');
 
 done_testing();
