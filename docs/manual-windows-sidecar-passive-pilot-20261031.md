@@ -2,8 +2,9 @@
 
 **Status (31 October 2026):** provider-owned offline research helper,
 not a deployed/registered Lyrion plugin. The separate
-`bliss-guidance-essentia` native SPI is unchanged and continues to
-return `signals=[]`. Generic BlissMixerLab, its mixer and playlist
+`bliss-guidance-essentia` native SPI now additionally verifies host seed
+source binding during `prepare` and continues to return `signals=[]`.
+Generic BlissMixerLab, its mixer and playlist
 selection remain unchanged.
 
 ## Scope deliberately excludes automatic library updates
@@ -53,13 +54,17 @@ than dropping candidates or choosing a new seed.
 Returned **local-only** audit reports `model_status=experimental`
 or `validated`, `source_bytes_verified=false`,
 `catalog_generation_verified=false`,
-`full_catalog_verified=false`. The caller owns deletion of
+`full_catalog_verified=false`. When `host_anchors` was supplied,
+`host_route_bound=true` records the local route verification; it does
+**not** assert source-byte or catalog-generation parity. The caller owns deletion of
 the private temporary directory after the test session.
 
 ## Verification
 
-[CI run 41202318933](https://github.com/chrober/lms-guidance-essentia/actions/runs/41202318933)
-passes the Perl suite and the independent Rust-native SPI process.
+[Current provider CI run 41217718930](https://github.com/chrober/lms-guidance-essentia/actions/runs/41217718930)
+passes **207 Perl tests** and **78 native-step Perl assertions** through
+the independent compiled Rust SPI process. The native Rust repository's
+separate Linux/Windows CI also passes at commit `ed944372`.
 `tests/imported_sidecar_pilot.t` creates a Windows-origin
 SQLite-v3 test database with an unvalidated genre model,
 manually copies it to a distinct Pi-side file, verifies real
@@ -82,8 +87,10 @@ The native result remains `signals=[]`.
   one unambiguous host root is currently supported. The SQLite-v3
   `(track_file, model_id)` PK remains collision-prone across roots.
 - No real-Lyrion plugin installation, discoverable available
-  provider, runtime native configuration or host-exercised
-  candidate batch. `Provider.pm` still returns `available=0`.
+  provider or live Lab DSTM invocation. A **real generic Perl JSONL
+  host** now exercises the bounded research cohort in CI, but not
+  an actual running Lyrion plugin. `Provider.pm` still returns
+  `available=0`.
 - The whole 65k catalog need not be fully covered or identical
   for this *passive* pilot. Missing/stale features remain neutral.
 
@@ -117,12 +124,26 @@ Thus the shared Perl runtime patch fixes the **standalone generic
 JSONL runtime**; it is not sufficient to populate missing seed
 context in Lab's existing `profile_from_provider()` call.
 
-The current `profile_from_provider()` uses an anchor-free global
-score context. The separate `lastfm_evidence_from_provider()`
-constructs host route IDs such as `seed-1`. Those IDs are valid
-provider-neutral SPI IDs, but an Essentia exact-key artifact
-must map its *same* anchor ID to the correct root-relative
-`track_file`; it must not silently assume `seed-1` is an LMS URL.
+Lab's [stacked Draft PR #6](https://github.com/chrober/lms-blissmixer-lab/pull/6)
+now extracts the established Last.fm seed-1/seed-2 builder into a
+provider-neutral helper and passes the frozen DSTM source seeds to
+`profile_from_provider()`. Library Signals ignores optional anchors.
+This remains a **research branch**, not Lab `main`.
+
+The imported-sidecar helper's explicit `host_anchors` argument now
+checks that a single `seed-N` route token is associated with the same
+original `file://` URL and 32-hex `urlmd5` as the trusted Lyrion
+seed object. Its `essentia-exact-track-keys-v1` artifact stores
+`track_id=seed-N` for that verified seed, plus the original
+`source_url`, `lms_urlmd5`, and its proven root-relative `track_file`.
+The separate native Rust provider reads the **SHA-256-pinned** artifact
+and independently checks that `prepare.anchors[0]` contains the exact
+URL and hash. Candidate IDs remain unchanged file URLs.
+
+The test's `seed-N` token is **not** a source URL or music root.
+The SHA-256 is an integrity checksum, **not** a signature or an
+independent provenance witness. Full audio-byte equivalence and
+catalog-generation proof remain separate later gates.
 
 ### Dependency pin caveat
 
@@ -138,15 +159,20 @@ mixer releases.
 
 ### Cross-repository integration evidence
 
-CI now pins shared-host research commit `d05a043b` alongside
-the unchanged independent native Essentia SPI revision and
-runs `ImportedSidecarPilot` through
-`Plugins::BlissGuidance::Runtime::score_batch()` with the
-actual `anchors`, `context` and `candidates` from its bounded
-Windows-to-Pi sidecar projection. It additionally verifies
-fail-closed behavior when the seed is missing or is replaced
-with a synthetic unbound ID. Neither test runs an LMS
-plugin, changes a player queue, or activates provider scoring.
+The provider workflow pins all **three** research components:
+Lab generic seed builder `ff67f7c5`, shared Perl host `d05a043b`,
+and native Essentia SPI `ed944372`. It runs the actual Lab
+`build_seed_context()` helper on a frozen source track, binds
+`seed-1` to the verified Windows-to-Pi feature cohort, then
+executes `describe → prepare → score → close` through the real
+shared Perl host and independent native Rust process.
+
+It proves the positive route as well as fail-closed behavior for
+missing/foreign route IDs, altered source URLs and changed
+`urlmd5` values **after** the artifact is generated, and continues
+to receive `signals=[]`. Neither test invokes a live LMS plugin,
+changes a player queue, or activates provider scoring.
+See [provider CI #41217718930](https://github.com/chrober/lms-guidance-essentia/actions/runs/41217718930).
 
 ## Next gated milestone
 
