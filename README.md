@@ -11,15 +11,22 @@ unvalidated model heads **only with explicit experimental preview
 opt-in**, retains their unvalidated status, and emits unchanged
 SPI-v2 artifacts/resources and `signals=[]`.
 
-Real native JSONL integration tests are green. **This is not yet
-an installable Lyrion integration**: provider discovery remains
-unavailable, and the existing generic host currently drops
-`prepare.anchors` instead of forwarding them. The host transport
-gap must be corrected generically, without coupling BlissMixerLab
-to Essentia. The automated Lyrion scan integration remains deferred.
+The generic host now forwards existing SPI-v2 anchors on
+[Draft PR #1](https://github.com/chrober/lms-bliss-guidance-host/pull/1).
+Lab [stacked Draft PR #6](https://github.com/chrober/lms-blissmixer-lab/pull/6)
+reuses the working Last.fm seed builder to provide `seed-1`
+and the original source identity. The research-only imported-sidecar
+helper binds that route token to an independently verified Lyrion URL,
+32-hex `urlmd5`, exact Bliss key and model fingerprint. Both the
+Perl helper and independent native Rust SPI `prepare` enforce the
+SHA-256-pinned mapping; missing and forged identities fail closed.
+[Real generic-host → native SPI CI](https://github.com/chrober/lms-guidance-essentia/actions/runs/41217718930)
+passes. The provider remains **noninstallable/unavailable** for real
+Lyrion use, with `signals=[]`, no live Lab deployment and no
+automatic library-triggered scanning.
 
 See [pilot implementation, test evidence and remaining
-generic host limitation]
+live-plugin limitation]
 (docs/manual-windows-sidecar-passive-pilot-20261031.md).
 
 ## First integration decision: Windows offline analysis, no LMS scan hook
