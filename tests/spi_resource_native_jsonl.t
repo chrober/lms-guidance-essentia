@@ -25,6 +25,7 @@ plan skip_all => 'native binary not configured for optional CI check'
 
 use lib "$FindBin::Bin/..";
 require 'EssentiaGuidance/SpiResourceBundle.pm';
+require 'EssentiaGuidance/Provider.pm';
 
 my $dir = tempdir(CLEANUP => 1);
 my $bliss_path = File::Spec->catfile($dir, 'bliss.db');
@@ -48,9 +49,14 @@ for my $name (@names) {
     my $vector = pack('f<*', map {
         0.05 + ((($_ * 17 + length($name) * 3) % 85) / 100)
     } 0..86);
-    $features->do('INSERT INTO feature_tracks VALUES(?,?,?,?,?)',
-        undef, "$name.flac", 'genre', 'genre', 'model-pin',
-        $vector);
+    my $insert = $features->prepare('INSERT INTO feature_tracks VALUES(?,?,?,?,?)');
+    $insert->bind_param(1, "$name.flac");
+    $insert->bind_param(2, 'genre');
+    $insert->bind_param(3, 'genre');
+    $insert->bind_param(4, 'model-pin');
+    $insert->bind_param(5, $vector, DBI::SQL_BLOB());
+    $insert->execute;
+    $insert->finish;
 }
 $bliss->disconnect;
 $features->disconnect;
@@ -113,7 +119,7 @@ is($stderr, '', 'native provider emits no private data to stderr');
 is(scalar(@responses), 4, 'actual describe/prepare/score/close exchanges completed');
 my @replies = map { decode_json($_) } @responses;
 is($replies[0]{type}, 'manifest', 'native provider emitted canonical manifest');
-is($replies[0]{manifest}{provider_id}, 'essentia-guidance',
+is($replies[0]{provider_id}, 'essentia-guidance',
     'manifest matches Lyrion discovery facade');
 is($replies[1]{type}, 'prepared', 'native SPI accepted provider-owned artifact and projected resource');
 is($replies[2]{type}, 'scores', 'native SPI accepted exact complete global candidate batch');
