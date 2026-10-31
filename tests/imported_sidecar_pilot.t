@@ -339,4 +339,41 @@ SKIP: {
         'spoofing the source hash cannot introduce active guidance');
 }
 
+
+# The same pinned shared generic runtime can also be invoked through the
+# optional, locally authorized **manual** probe. The plugin discovery factory
+# itself is deliberately not made available by this pilot.
+SKIP: {
+    skip 'manual generic-host passive probe needs a pinned native test binary', 9
+        unless $host_source && -f File::Spec->catfile($host_source,
+            'Plugins', 'BlissGuidance', 'Runtime.pm')
+            && $native && -x $native;
+    require 'EssentiaGuidance/PassiveProbe.pm';
+    local @INC = ($host_source, @INC);
+    my @before = glob(File::Spec->catfile($dir, 'essentia-imported-pilot-*'));
+    my $res = Plugins::EssentiaGuidance::PassiveProbe::run(
+        %args, native_program => $native, deadline_ms => 5000);
+    ok($res->{valid}, 'manual passive runner uses the actual generic SPI v2 host and Rust executable');
+    is($res->{state}, 'shadow_evaluated_no_active_signals',
+        'no ranking model can be enabled by a manual pilot');
+    is_deeply($res->{signals}, [], 'manual passive result has no candidate influence');
+    is($res->{candidate_count}, 2, 'manual pilot admits only the frozen two-candidate batch');
+    ok($res->{host_route_bound}, 'manual pilot retains verified Last.fm-style seed-1 route');
+    is($res->{model_status}, 'experimental',
+        'manual pilot retains genuinely unvalidated Windows model metadata');
+    my @after = glob(File::Spec->catfile($dir, 'essentia-imported-pilot-*'));
+    is_deeply(\@after, \@before,
+        'manual passive runner removes its temporary artifacts and SQLite projection');
+    my $tampered = Plugins::EssentiaGuidance::PassiveProbe::run(
+        %args, native_program => $native, deadline_ms => 5000,
+        host_anchors => [{
+            %{$host_seed_anchors->[0]}, candidate_id => 'file:///wrong-seed.flac',
+        }]);
+    ok(!$tampered->{valid} && @{$tampered->{signals}} == 0,
+        'incorrect source identity fails closed without a native scoring signal');
+    my @end = glob(File::Spec->catfile($dir, 'essentia-imported-pilot-*'));
+    is_deeply(\@end, \@before,
+        'failed manual probe also cleans up the bounded cohort workspace');
+}
+
 done_testing();
