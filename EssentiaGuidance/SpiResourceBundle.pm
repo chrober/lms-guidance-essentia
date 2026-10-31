@@ -149,6 +149,8 @@ sub assemble_research_bundle {
             ($catalog_proof ? (catalog_fingerprint => {
                 kind => $catalog_proof->{kind},
                 fingerprint_sha256 => $catalog_proof->{fingerprint_sha256},
+                catalog_sha256 => $catalog_proof->{catalog_sha256},
+                host_root_map_sha256 => $catalog_proof->{host_root_map_sha256},
                 eligible_tracks => $catalog_proof->{eligible_tracks},
                 generation_verified => JSON::PP::false,
             }) : ()),
