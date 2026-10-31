@@ -1,5 +1,23 @@
 # Lyrion Essentia Guidance: required plugin contract
 
+## First-phase operating model — user decision (31 October 2026)
+
+The analyser is a **manual Windows batch tool**, not a post-rescan
+Lyrion service. With 65k+ tracks, initial full-library decoding
+on a Raspberry Pi 4B is not required. The provider on the Pi must
+eventually consume a read-only transferred SQLite-v3 sidecar via
+the **existing SPI v2**, without launching analysis or model
+inference. Partial cohort coverage and neutral fallback are acceptable
+for the first passive experiment.
+
+Catalog-generation attestation, portable root receipts and
+incremental automatic library-update processing are later work.
+The offline Windows pilot may proceed without them. The real
+host plugin remains unavailable until verified source mapping
+and the research-only policy for experimental features are
+implemented. See [the staged plan]
+(windows-offline-first-spi-integration-20261031.md).
+
 ## Offline content provenance across multiple roots — 31 October 2026
 
 The provider now has an optional **offline-only** SHA-256 source attestor:
