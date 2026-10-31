@@ -206,4 +206,64 @@ SKIP: {
         'native replies contain no private source paths or track keys');
 }
 
+
+# Additional cross-repository gate: the actual GENERIC Perl host runtime
+# must carry the same trusted seed and candidate IDs to the independent
+# native Essentia JSONL provider. Host and native revisions are CI pinned.
+# This is NOT an active Lab/DSTM call or Lyrion plugin deployment.
+my $host_source = $ENV{ESSENTIA_SHARED_HOST_SRC} || '';
+SKIP: {
+    skip 'pinned shared host + independent native provider not available', 8
+        unless $host_source && -f File::Spec->catfile($host_source,
+            'Plugins', 'BlissGuidance', 'Runtime.pm')
+            && $native && -x $native;
+    require File::Spec;
+    require File::Basename;
+    my $runtime = File::Spec->catfile(
+        $host_source, 'Plugins', 'BlissGuidance', 'Runtime.pm');
+    require $runtime;
+    my $config = {
+        id => 'essentia-guidance',
+        program => $native,
+        options => $bundle->{options},
+        artifacts => $bundle->{artifacts},
+        resources => $bundle->{resources},
+        timeout_ms => 5000,
+    };
+    my $request = {
+        job_id => $bundle->{job_id},
+        request_id => 'host-imported-sidecar-cohort',
+        deadline_ms => 5000,
+        anchors => $bundle->{anchors},
+        context => $bundle->{context},
+        candidates => $bundle->{candidates},
+    };
+    my $result = Plugins::BlissGuidance::Runtime::score_batch(
+        $config, $request);
+    diag('shared host native integration: ' . ($result->{diagnostic} || ''))
+        unless $result->{valid};
+    ok($result->{valid},
+        'real generic host and real native Rust provider complete a full SPI-v2 exchange');
+    is($result->{manifest}{provider_id}, 'essentia-guidance',
+        'generic host negotiated the pinned Essentia native provider');
+    is($result->{prepared}{type}, 'prepared',
+        'prepare succeeded using exactly the provider-owned pinned seed');
+    is($result->{diagnostics}{state},
+        'shadow_evaluated_no_active_signals',
+        'native geometry evaluated in the correct global seed context');
+    is_deeply($result->{signals}, [],
+        'full generic host integration remains strictly neutral');
+    my $without_seed = Plugins::BlissGuidance::Runtime::score_batch(
+        $config, { %$request, anchors => [] });
+    ok(!$without_seed->{valid},
+        'same provider fails closed if generic host loses the seed anchor');
+    is_deeply($without_seed->{signals}, [],
+        'missing seed never changes candidate ranking');
+    my $fake_anchor = { %{$bundle->{anchors}[0]}, anchor_id => 'seed-1' };
+    my $misaligned = Plugins::BlissGuidance::Runtime::score_batch(
+        $config, { %$request, anchors => [$fake_anchor] });
+    ok(!$misaligned->{valid},
+        'synthetic seed-1 is not silently substituted for the pinned exact track ID');
+}
+
 done_testing();
