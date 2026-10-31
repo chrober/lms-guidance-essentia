@@ -28,4 +28,4 @@ jobs:
         run: |
           mkdir -p Plugins
           ln -s ../EssentiaGuidance Plugins/EssentiaGuidance
-          prove -lv tests/provider_spi_contract.t tests/exact_identity.t tests/exact_identity_sqlite.t tests/bounded_snapshot.t
+          prove -lv tests/provider_spi_contract.t tests/exact_identity.t tests/exact_identity_sqlite.t tests/bounded_snapshot.t tests/spi_resource_bundle.t
