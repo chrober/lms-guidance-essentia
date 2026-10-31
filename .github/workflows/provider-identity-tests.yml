@@ -57,4 +57,4 @@ jobs:
           ESSENTIA_NATIVE_SPI_BIN: ${{ github.workspace }}/_native_provider/target/debug/bliss-guidance-essentia
           ESSENTIA_SHARED_HOST_SRC: ${{ github.workspace }}/_shared_host
           ESSENTIA_LAB_ADAPTER_SRC: ${{ github.workspace }}/_lab_seed_adapter
-        run: prove -lv tests/spi_resource_native_jsonl.t tests/imported_sidecar_pilot.t
+        run: prove -lv tests/discovery_staging.t tests/spi_resource_native_jsonl.t tests/imported_sidecar_pilot.t
