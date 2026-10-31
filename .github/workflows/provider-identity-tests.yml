@@ -58,3 +58,28 @@ jobs:
           ESSENTIA_SHARED_HOST_SRC: ${{ github.workspace }}/_shared_host
           ESSENTIA_LAB_ADAPTER_SRC: ${{ github.workspace }}/_lab_seed_adapter
         run: prove -lv tests/discovery_staging.t tests/spi_resource_native_jsonl.t tests/imported_sidecar_pilot.t
+
+  stage-passive-plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package only the staging LMS plugin shell (no native binaries)
+        run: |
+          test -f EssentiaGuidance/install.xml
+          test -f EssentiaGuidance/Settings.pm
+          test -f EssentiaGuidance/Bin/SOURCE.md
+          if find EssentiaGuidance/Bin -type f ! -name SOURCE.md | grep -q .; then
+            echo 'Unexpected native binaries in staging plugin source' >&2
+            exit 1
+          fi
+          mkdir -p _stage/Plugins
+          cp -a EssentiaGuidance _stage/Plugins/EssentiaGuidance
+          (cd _stage && zip -q -r ../essentia-guidance-passive-staging.zip Plugins/EssentiaGuidance)
+          unzip -l essentia-guidance-passive-staging.zip
+      - name: Publish short-lived staging artifact only
+        uses: actions/upload-artifact@v4
+        with:
+          name: essentia-guidance-passive-staging
+          path: essentia-guidance-passive-staging.zip
+          retention-days: 7
+          if-no-files-found: error
