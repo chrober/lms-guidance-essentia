@@ -1,5 +1,28 @@
 # Bliss Guidance: Essentia (Lyrion provider)
 
+## First integration decision: Windows offline analysis, no LMS scan hook
+
+For the initial 65k+ music library, the user will run
+`essentia-analyser` **manually on Windows** against a consistent
+Bliss catalog copy and Windows-readable music files. The Raspberry
+Pi 4B running Lyrion will **only read a manually transferred
+SQLite-v3 feature snapshot**. This process is independent of
+`rescan`, `library changed`, `lastscan` or playlist creation.
+Partial feature coverage is acceptable for the first passive
+SPI-v2 integration; missing rows remain neutral.
+
+**Separate gates:** an authenticated shared catalog generation and
+automatic library-triggered scan jobs are later concerns, not
+prerequisites for the first bounded passive research pilot.
+Real-host provider deployment still needs a verified source mapping
+and explicit research handling of unvalidated features, and the
+existing provider factory stays disabled until those are implemented.
+
+See [Windows-first offline SPI integration plan]
+(docs/windows-offline-first-spi-integration-20261031.md) and the
+[Windows manual scanner runbook]
+(https://github.com/chrober/essentia-analyser/blob/feat/scan-audio-stability-guard/docs/windows-manual-offline-scan-first-integration-20261031.md).
+
 ## Read-only catalog fingerprint and root-map freshness — 31 October 2026
 
 `EssentiaGuidance/CatalogFingerprint.pm` now creates a deterministic
