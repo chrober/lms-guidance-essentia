@@ -9,11 +9,14 @@ use File::Temp qw(tempdir);
 use JSON::PP ();
 use Plugins::EssentiaGuidance::ExactIdentity ();
 use Plugins::EssentiaGuidance::BoundedSnapshot ();
+use Plugins::EssentiaGuidance::SourceProvenance ();
 
 # OFFLINE RESEARCH FIXTURE ONLY, not a Lyrion provider entry point.
 # It demonstrates composition of provider-owned source verification and
 # standard SPI-v2 artifacts/resources. It does NOT prove joint generation
-# or multi-root provenance, and Provider.pm MUST keep production unavailable.
+# or any joint catalogue generation. A content-attested cohort can prove
+# exact file bytes across multiple roots without proving global scan sync.
+# Provider.pm MUST keep production unavailable.
 # The caller owns and must remove private_directory after the SPI session.
 sub assemble_research_bundle {
     my (%arg) = @_;
@@ -46,23 +49,49 @@ sub assemble_research_bundle {
             $arg{bliss_db});
         my $features = Plugins::EssentiaGuidance::BoundedSnapshot::open_source(
             $arg{feature_db});
-        my $verify = Plugins::EssentiaGuidance::ExactIdentity::verifier_from_db_handles(
-            $bliss, $features);
-        my $artifact = Plugins::EssentiaGuidance::ExactIdentity::write_artifact(
-            anchors => $arg{anchors}, candidates => $arg{candidates},
-            media_dirs => $arg{media_dirs}, verify_key => $verify,
-            job_id => $arg{job_id}, directory => $private,
-            windows => $arg{windows},
-        );
-
-        open my $fh, '<:raw', $artifact->{path}
-            or die 'cannot read bounded identity artifact';
-        local $/;
-        my $blob = <$fh>;
-        close $fh;
-        die 'oversize identity artifact' if length($blob) > 256 * 1024;
-        my $decoded = JSON::PP->new->utf8->decode($blob);
-        my @rows = @{$decoded->{tracks}};
+        my ($artifact, @rows, $content_proof);
+        if ($arg{verify_audio_content}) {
+            # Offline-only full SHA256 of original audio, checked against
+            # scanner feature_tracks.audio_sha256 and feature_track_state.
+            # Supports different configured music roots only where the
+            # relative scanner keys remain globally collision-free.
+            $content_proof = Plugins::EssentiaGuidance::SourceProvenance::attest_cohort(
+                research_only => 1,
+                anchors => $arg{anchors}, candidates => $arg{candidates},
+                media_dirs => $arg{media_dirs},
+                bliss_dbh => $bliss, feature_dbh => $features,
+                model_id => $arg{model_id},
+                expected_model_key => $arg{expected_model_key},
+                (defined($arg{max_file_bytes})
+                    ? (max_file_bytes => $arg{max_file_bytes}) : ()),
+                (defined($arg{max_total_bytes})
+                    ? (max_total_bytes => $arg{max_total_bytes}) : ()),
+            );
+            @rows = @{$content_proof->{tracks}};
+            $artifact = Plugins::EssentiaGuidance::ExactIdentity::write_content_attested_artifact(
+                research_only => 1, proof => $content_proof,
+                job_id => $arg{job_id}, directory => $private,
+            );
+        } else {
+            # Historical exact-key proof: at most one music root, without
+            # verifying whether scanner feature rows match current audio.
+            my $verify = Plugins::EssentiaGuidance::ExactIdentity::verifier_from_db_handles(
+                $bliss, $features);
+            $artifact = Plugins::EssentiaGuidance::ExactIdentity::write_artifact(
+                anchors => $arg{anchors}, candidates => $arg{candidates},
+                media_dirs => $arg{media_dirs}, verify_key => $verify,
+                job_id => $arg{job_id}, directory => $private,
+                windows => $arg{windows},
+            );
+            open my $fh, '<:raw', $artifact->{path}
+                or die 'cannot read bounded identity artifact';
+            local $/;
+            my $blob = <$fh>;
+            close $fh;
+            die 'oversize identity artifact' if length($blob) > 256 * 1024;
+            my $decoded = JSON::PP->new->utf8->decode($blob);
+            @rows = @{$decoded->{tracks}};
+        }
         die 'incomplete exact identity cohort'
             unless @rows == 1 + @{$arg{candidates}};
 
@@ -77,7 +106,6 @@ sub assemble_research_bundle {
 
         $bliss->do('ROLLBACK');
         $features->do('ROLLBACK');
-        $verify = undef;
         $bliss->disconnect;
         $features->disconnect;
 
@@ -87,6 +115,12 @@ sub assemble_research_bundle {
         } @rows[1 .. $#rows];
         $result = {
             private_directory => $private,
+            ($content_proof ? (audio_content_audit => {
+                verified_count => $content_proof->{verified_count},
+                music_root_count => $content_proof->{music_root_count},
+                bytes_hashed => $content_proof->{bytes_hashed},
+                generation_verified => JSON::PP::false,
+            }) : ()),
             options => {
                 model_id => $arg{model_id}, metric => $arg{metric},
                 expected_model_key => $arg{expected_model_key},
