@@ -4,12 +4,28 @@ use strict;
 use warnings;
 use base qw(Slim::Plugin::Base);
 use Plugins::EssentiaGuidance::Provider;
+use File::Basename qw(dirname);
+use File::Spec::Functions qw(catfile);
 
-sub getDisplayName { return 'Bliss Guidance: Essentia (research)'; }
+sub getDisplayName { return 'PLUGIN_ESSENTIAGUIDANCE_NAME'; }
 
 sub initPlugin {
     my $class = shift;
+    _load_strings();
+    if (main::WEBUI) {
+        require 'Plugins/EssentiaGuidance/Settings.pm';
+        Plugins::EssentiaGuidance::Settings->new;
+    }
     return $class->SUPER::initPlugin(@_);
+}
+
+sub _load_strings {
+    my $path = catfile(dirname(__FILE__), 'strings.txt');
+    return unless -r $path;
+    eval {
+        require Slim::Utils::Strings;
+        Slim::Utils::Strings::loadFile($path);
+    };
 }
 
 sub guidance_provider_descriptor_v1 {
