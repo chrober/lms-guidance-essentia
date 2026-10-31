@@ -77,7 +77,7 @@ $wf->disconnect;
 my $bliss = Plugins::EssentiaGuidance::BoundedSnapshot::open_source($bliss_file);
 my $features = Plugins::EssentiaGuidance::BoundedSnapshot::open_source($features_file);
 
-sub run_audit {
+my $run_audit = sub {
     my (%override) = @_;
     return Plugins::EssentiaGuidance::SourceProvenance::attest_cohort(
         research_only => 1, anchors => [$seed], candidates => [$a, $b],
@@ -85,10 +85,10 @@ sub run_audit {
         model_id => 'genre', expected_model_key => 'pinned-v3',
         max_file_bytes => 4096, max_total_bytes => 8192, %override,
     );
-}
+};
 
 
-my $proof = run_audit();
+my $proof = $run_audit->();
 is($proof->{kind}, 'essentia-audio-content-cohort-v1',
     'auditor declares a content-only proof, not a generation proof');
 is($proof->{verified_count}, 3, 'one seed and two candidate files audited');
@@ -101,42 +101,42 @@ ok(!exists($proof->{generation_validated}),
     'content attestation does not pretend cross-database generation equality');
 
 write_audio("$root_b/a.flac", 'other physical recording');
-my $collision = eval { run_audit(); 1 };
+my $collision = eval { $run_audit->(); 1 };
 ok(!$collision, 'duplicated relative track key across roots rejected');
 unlink("$root_b/a.flac");
 
 my $same_size = 'A altered audio!';
 is(length($same_size), length($audio[1]), 'same-size mutation fixture');
 write_audio($paths[1], $same_size);
-my $mutated = eval { run_audit(); 1 };
+my $mutated = eval { $run_audit->(); 1 };
 ok(!$mutated, 'same-length but different content rejects stale scanner features');
 write_audio($paths[1], $audio[1]);
 
-my $wrong_model = eval { run_audit(expected_model_key => 'wrong-model'); 1 };
+my $wrong_model = eval { $run_audit->(expected_model_key => 'wrong-model'); 1 };
 ok(!$wrong_model, 'unknown model fingerprint rejected');
-my $too_small = eval { run_audit(max_total_bytes => 8); 1 };
+my $too_small = eval { $run_audit->(max_total_bytes => 8); 1 };
 ok(!$too_small, 'bounded hash I/O budget prevents unbounded scanning');
 my $fake = ProvenanceFixtureTrack->new('https://example.org/audio', $paths[1]);
-my $stream = eval { run_audit(candidates => [$fake, $b]); 1 };
+my $stream = eval { $run_audit->(candidates => [$fake, $b]); 1 };
 ok(!$stream, 'nonlocal stream is never treated as scanner audio');
 
 symlink($paths[1], "$root_a/alias.flac") or die $!;
 my $symlinked = ProvenanceFixtureTrack->new('file:///rootA/alias.flac',
     "$root_a/alias.flac");
-my $alias = eval { run_audit(candidates => [$symlinked, $b]); 1 };
+my $alias = eval { $run_audit->(candidates => [$symlinked, $b]); 1 };
 ok(!$alias, 'symbolic-link aliases are rejected as ambiguous identity');
 
-my $duplicated = eval { run_audit(candidates => [$a, $a]); 1 };
+my $duplicated = eval { $run_audit->(candidates => [$a, $a]); 1 };
 ok(!$duplicated, 'duplicate host candidate rejected');
 
-my $unclean_root = eval { run_audit(media_dirs => ["$root_a/.", $root_b]); 1 };
+my $unclean_root = eval { $run_audit->(media_dirs => ["$root_a/.", $root_b]); 1 };
 ok(!$unclean_root, 'noncanonical music root is rejected');
-my $same_root_twice = eval { run_audit(media_dirs => [$root_a, $root_a]); 1 };
+my $same_root_twice = eval { $run_audit->(media_dirs => [$root_a, $root_a]); 1 };
 ok(!$same_root_twice, 'duplicated configured music root rejected');
 
 my $unclean_path = ProvenanceFixtureTrack->new(
     'file:///rootB/../rootB/b.flac', "$root_b/../rootB/b.flac");
-my $traversal = eval { run_audit(candidates => [$a, $unclean_path]); 1 };
+my $traversal = eval { $run_audit->(candidates => [$a, $unclean_path]); 1 };
 ok(!$traversal, 'parent-directory track alias is rejected');
 
 $bliss->do('ROLLBACK');
