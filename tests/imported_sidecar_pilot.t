@@ -16,9 +16,10 @@ BEGIN {
 }
 {
     package ImportedPiTrack;
-    sub new { bless {url => $_[1], path => $_[2]}, $_[0] }
+    sub new { bless {url => $_[1], path => $_[2], urlmd5 => $_[3]}, $_[0] }
     sub url { $_[0]->{url} }
     sub path { $_[0]->{path} }
+    sub urlmd5 { $_[0]->{urlmd5} }
 }
 use lib "$FindBin::Bin/..";
 require 'EssentiaGuidance/ImportedSidecarPilot.pm';
@@ -62,7 +63,8 @@ for my $i (0..$#names) {
     print {$audio} $bytes or die $!;
     close $audio or die $!;
     push @paths, $full;
-    push @host_tracks, ImportedPiTrack->new("file:///host/$name", $full);
+    push @host_tracks, ImportedPiTrack->new(
+        "file:///host/$name", $full, sprintf('%032x', $i + 1));
     $bliss->do('INSERT INTO TracksV2 VALUES (?,0)', undef, $name);
     my $stmt = $win->prepare('INSERT INTO feature_tracks VALUES(?,?,?,?,?,?)');
     $stmt->bind_param(1, $name);
@@ -86,6 +88,32 @@ $bliss->disconnect;
 $win->disconnect;
 copy($win_file, $pi_file) or die 'manual Windows SQLite export fixture copy failed';
 
+# Reuse the REAL generic Lab helper when the pinned research checkout is
+# available in CI. The small local fixture below preserves identical
+# inputs for standalone read-only unit tests without another checkout.
+my $lab_adapter = $ENV{ESSENTIA_LAB_ADAPTER_SRC} || '';
+my $host_seed_anchors;
+if (length($lab_adapter)) {
+    my $path = File::Spec->catfile(
+        $lab_adapter, 'BlissMixerLab', 'GuidanceProviderAdapter.pm');
+    die 'pinned generic Lab seed adapter unavailable' unless -f $path;
+    require $path;
+    my ($anchors, $context_ids) =
+        Plugins::BlissMixerLab::GuidanceProviderAdapter::build_seed_context(
+            [$host_tracks[0]]);
+    die 'generic Lab host did not supply exactly one stable source seed'
+        unless ref($anchors) eq 'ARRAY' && @$anchors == 1
+            && ref($context_ids) eq 'ARRAY'
+            && @$context_ids == 1 && $context_ids->[0] eq 'seed-1';
+    $host_seed_anchors = $anchors;
+} else {
+    $host_seed_anchors = [{
+        anchor_id => 'seed-1',
+        candidate_id => $host_tracks[0]->url,
+        lms_urlmd5 => $host_tracks[0]->urlmd5,
+    }];
+}
+
 my %args = (
     research_only => 1, passive_only => 1,
     experimental_preview_opt_in => 1,
@@ -93,6 +121,7 @@ my %args = (
     bliss_db => $bliss_file, feature_db => $pi_file,
     media_dirs => [$root],
     anchors => [$host_tracks[0]],
+    host_anchors => $host_seed_anchors,
     candidates => [@host_tracks[1,2]],
     model_id => 'genre', metric => 'affine_cosine_v1',
     expected_model_key => 'real-windows-unvalidated-model',
@@ -131,11 +160,37 @@ my $artifact;
 }
 is_deeply([map { $_->{track_file} } @{$artifact->{tracks}}], \@names,
     'cross-machine source keys are root-relative, exact, ordered and distinct');
+is_deeply([map { $_->{track_id} } @{$artifact->{tracks}}],
+    ['seed-1', map { $_->url } @host_tracks[1,2]],
+    'native exact-key artifact now binds generic host seed-N without relabeling candidates');
+is($bundle->{anchors}[0]{anchor_id}, 'seed-1',
+    'prepare uses the unchanged generic Last.fm-style route token');
+is($bundle->{anchors}[0]{candidate_id}, $host_tracks[0]->url,
+    'host anchor retains source file URL independent of its route token');
+is($bundle->{anchors}[0]{lms_urlmd5}, $host_tracks[0]->urlmd5,
+    'host anchor retains the verified original Lyrion hash');
+is_deeply($bundle->{context}{context_track_ids}, ['seed-1'],
+    'score references precisely the same verified generic seed token');
+ok($bundle->{audit}{host_route_bound},
+    'local research audit distinguishes an explicitly bound host route');
+my $unaliased = $build->(host_anchors => undef);
+is($unaliased->{anchors}[0]{anchor_id}, $host_tracks[0]->url,
+    'original direct offline research API remains backward compatible');
+ok(!$unaliased->{audit}{host_route_bound},
+    'direct offline API does not claim that an opaque host route was verified');
 ok(!Plugins::EssentiaGuidance::Provider::guidance_provider_status_v1()->{available},
     'offline imported pilot cannot enable the real LMS provider');
 
 my @negative = (
     [{ research_only => 0 }, 'cannot execute without explicit offline research opt-in'],
+    [{ host_anchors => [] }, 'empty generic route set is not a one-seed binding'],
+    [{ host_anchors => [{ %{$host_seed_anchors->[0]}, anchor_id => 'seed-2',
+          candidate_id => $host_tracks[1]->url }] },
+      'a route token cannot bind a different Lyrion song URL'],
+    [{ host_anchors => [{ %{$host_seed_anchors->[0]}, lms_urlmd5 => 'f' x 32 }] },
+      'a forged Lyrion hash cannot acquire a trusted source key'],
+    [{ host_anchors => [{ %{$host_seed_anchors->[0]}, anchor_id => 'seed-0' }] },
+      'invalid generic seed numbering fails before native prepare'],
     [{ passive_only => 0 }, 'cannot be used to produce active guidance'],
     [{ experimental_preview_opt_in => 0 }, 'unvalidated model rejected without preview opt-in'],
     [{ expected_model_key => 'wrong-pin' }, 'mismatched ONNX model fingerprint is rejected'],
@@ -259,7 +314,7 @@ SKIP: {
         'same provider fails closed if generic host loses the seed anchor');
     is_deeply($without_seed->{signals}, [],
         'missing seed never changes candidate ranking');
-    my $fake_anchor = { %{$bundle->{anchors}[0]}, anchor_id => 'seed-1' };
+    my $fake_anchor = { %{$bundle->{anchors}[0]}, anchor_id => 'seed-2' };
     my $misaligned = Plugins::BlissGuidance::Runtime::score_batch(
         $config, { %$request, anchors => [$fake_anchor] });
     ok(!$misaligned->{valid},
