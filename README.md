@@ -1,5 +1,34 @@
 # Bliss Guidance: Essentia (Lyrion provider)
 
+## Staging-installable, passive-only plugin shell — 31 October 2026
+
+The research branch now contains a **standard Lyrion plugin layout**:
+`EssentiaGuidance/install.xml`, `Plugin.pm`, `Provider.pm`,
+`Settings.pm`, `strings.txt`, `HTML/` and native binary
+provenance documentation in `Bin/SOURCE.md`. Installation defaults
+to **disabled on every platform**. Once manually enabled in an
+**isolated staging Lyrion**, the settings page only shows the
+unavailable status and has no execution controls.
+
+Crucially, normal Guidance discovery still returns
+`available=0` and the normal native config factory **always rejects**;
+the installed shell cannot alter playlist ranking. The separately
+authorized, local-only `EssentiaGuidance/PassiveProbe.pm` can run an
+explicit one-seed/2–50-candidate **manual research probe** through
+the existing generic SPI-v2 runtime. It requires real verified track
+objects, a manually copied SQLite-v3 sidecar and a pinned local
+native executable. It removes temporary private artifacts on both
+success and failure, and can only return `signals=[]`.
+
+**This is not a published LMS plugin release, not an automatically
+activated provider and not yet verified on a running staging Lyrion.**
+No production Pi, model download, automatic scan or mixer scoring
+has been touched.
+
+See [staging installation and manual passive probe runbook]
+(docs/manual-passive-lms-plugin-staging-20261031.md).
+
+
 ## Manual Windows-sidecar passive SPI pilot (31 October 2026)
 
 The new provider-owned `ImportedSidecarPilot.pm` accepts a consistent
@@ -21,8 +50,8 @@ helper binds that route token to an independently verified Lyrion URL,
 Perl helper and independent native Rust SPI `prepare` enforce the
 SHA-256-pinned mapping; missing and forged identities fail closed.
 [Real generic-host → native SPI CI](https://github.com/chrober/lms-guidance-essentia/actions/runs/41217718930)
-passes. The provider remains **noninstallable/unavailable** for real
-Lyrion use, with `signals=[]`, no live Lab deployment and no
+passes. The plugin shell is **staging-installable but unavailable to the normal
+Guidance host** for real scoring, with `signals=[]`, no live Lab deployment and no
 automatic library-triggered scanning.
 
 See [pilot implementation, test evidence and remaining
@@ -119,10 +148,10 @@ The [native integration CI](https://github.com/chrober/lms-guidance-essentia/act
 passes 94 offline Perl tests and 12 true native SPI JSONL assertions, while
 preserving `signals=[]` and identical host-admitted candidate identities.
 
-**This is not an installable or functional Lyrion plugin**: no
-`install.xml`, settings UI, release binary, authoritative source-generation
-proof or multi-root source witness has been added. The positive research
-fixture has no authority to activate production status or influence playback.
+**Historical checkpoint:** at that earlier point, no `install.xml` or
+settings UI existed. A staging-only install shell and status page have
+since been added, but there is still no release binary, authenticated
+source-generation proof, real live Guidance acquisition or active scoring.
 
 See [SPI-only provider ownership and gates]
 (docs/provider-owned-spi-shadow-20261031.md).
@@ -137,16 +166,17 @@ Lab-owned direct Essentia subprocess and modules were deleted.
 
 This branch now contains experimental `EssentiaGuidance/ExactIdentity.pm`
 and `EssentiaGuidance/BoundedSnapshot.pm` with independent offline tests.
-**The plugin remains non-installable and not registered**, with no
-`Plugin.pm`, runtime integration or active guidance. A missing authoritative
-cross-database generation/root witness still blocks real host use.
+**Historical checkpoint:** the provider originally lacked a plugin
+installation layout. That layout now exists for staging; the absent
+authoritative cross-database generation/root witness continues to block
+normal live Guidance use.
 
 See [provider-owned SPI and provenance contract]
 (docs/provider-owned-spi-shadow-20261031.md).
 
-**Status: Lyrion plugin remains design-only and is not installable. The separate native [Essentia Guidance Draft PR #1](https://github.com/chrober/bliss-guidance-essentia/pull/1) now contains a real, tested, shadow-neutral SPI v2 executable. It emits no active Guidance signals and has not been packaged or connected to Lyrion hosts.**
+**Status: Lyrion plugin is staging-installable but intentionally unavailable for normal scoring. The separate native [Essentia Guidance Draft PR #1](https://github.com/chrober/bliss-guidance-essentia/pull/1) now contains a real, tested, shadow-neutral SPI v2 executable. It emits no active Guidance signals and has not been packaged or connected to Lyrion hosts.**
 
-A future independently installable, passive Lyrion guidance provider, following the conventions of [`lms-guidance-lastfm`](https://github.com/chrober/lms-guidance-lastfm) and [`lms-guidance-library-signals`](https://github.com/chrober/lms-guidance-library-signals). It will expose an optional [`bliss-guidance-essentia`](https://github.com/chrober/bliss-guidance-essentia) native provider using the host-independent [`essentia-similarity`](https://github.com/chrober/essentia-similarity) engine to compatible Lyrion hosts: [BlissMixerLab](https://github.com/chrober/lms-blissmixer-lab) first, then [Better Call Bliss](https://github.com/chrober/lms-better-call-bliss).
+A research-only, staging-installable shell for a future live-capable passive Lyrion guidance provider, following the conventions of [`lms-guidance-lastfm`](https://github.com/chrober/lms-guidance-lastfm) and [`lms-guidance-library-signals`](https://github.com/chrober/lms-guidance-library-signals). It will expose an optional [`bliss-guidance-essentia`](https://github.com/chrober/bliss-guidance-essentia) native provider using the host-independent [`essentia-similarity`](https://github.com/chrober/essentia-similarity) engine to compatible Lyrion hosts: [BlissMixerLab](https://github.com/chrober/lms-blissmixer-lab) first, then [Better Call Bliss](https://github.com/chrober/lms-better-call-bliss).
 
 Lyrion hosts discover installed guidance providers, keep them opt-in, resolve trusted configuration and invoke native hosts implementing the [`bliss-playlist-guidance-spi`](https://github.com/chrober/bliss-playlist-guidance-spi) version 2. This plugin must **not** modify an already-playing queue, accept unauthorized database paths from browser input, fetch ONNX models during playback, or bypass Bliss admission/repeat/route constraints.
 
