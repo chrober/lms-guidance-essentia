@@ -77,6 +77,11 @@ for my $i (0..$#names) {
         $name, 'genre', length($bytes), 0, 'real-windows-unvalidated-model');
 }
 $bliss->do('INSERT INTO TracksV2 VALUES (?,0)', undef, 'unanalysed.flac');
+# Exists physically and in Bliss, but intentionally has NO imported feature row.
+my $missing_file = File::Spec->catfile($root, 'unanalysed.flac');
+open my $missing_audio, '>:raw', $missing_file or die $!;
+print {$missing_audio} 'Physical Pi track not present in manual Windows export' or die $!;
+close $missing_audio or die $!;
 $bliss->disconnect;
 $win->disconnect;
 copy($win_file, $pi_file) or die 'manual Windows SQLite export fixture copy failed';
