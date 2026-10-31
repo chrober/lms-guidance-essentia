@@ -87,37 +87,66 @@ The native result remains `signals=[]`.
 - The whole 65k catalog need not be fully covered or identical
   for this *passive* pilot. Missing/stale features remain neutral.
 
-## Found generic host blocker
+## Generic SPI host correction — isolated Draft PRs
 
-During verification the shared host
-[`lms-bliss-guidance-host/Plugins/BlissGuidance/Runtime.pm`]
-(https://github.com/chrober/lms-bliss-guidance-host/blob/main/Plugins/BlissGuidance/Runtime.pm)
-was found to hardcode `anchors => []` for every
-native `prepare` request. The existing SPI-v2 request format
-already includes `anchors`; the Essentia native provider
-requires one verified global seed. This is a **generic host
-transport gap**, not justification for Essentia code in
-BlissMixerLab or a second native subprocess runner.
+GitHub repository access has been granted and the SPI-v2
+`prepare.anchors` transport problem has been corrected **on a
+dedicated research branch only**:
 
-Proposed generic-only host line (not yet applied to that repo):
+- [Shared host Draft PR #1](https://github.com/chrober/lms-bliss-guidance-host/pull/1),
+  branch `fix/spi-v2-prepare-anchors`, forwards the trusted
+  `request.anchors` array and preserves `[]` for callers without it.
+  [CI run 41208151575](https://github.com/chrober/lms-bliss-guidance-host/actions/runs/41208151575):
+  **10 tests PASS**.
+- [Lab vendor Draft PR #5](https://github.com/chrober/lms-blissmixer-lab/pull/5),
+  branch `test/spi-v2-anchor-forwarding-vendor`, updates only that
+  same provider-neutral line in Lab's older copy, without importing
+  unrelated upstream logging changes.
+  [CI run 41208337308](https://github.com/chrober/lms-blissmixer-lab/actions/runs/41208337308):
+  **267 Perl tests PASS**.
+- `Better Call Bliss` carries only the shared controls/Policy and
+  SettingsModel files in its current tree, not this Runtime.pm.
 
-```perl
-anchors => ref($request->{anchors}) eq 'ARRAY' ? $request->{anchors} : [],
-```
+### Which host actually runs the Lab provider?
 
-The existing host's generic `Runtime::score_batch` regression
-test should verify forwarded and absent anchors. Separately,
-the actual generic Lab call path must supply a trustworthy
-seed/candidate cohort with aligned IDs; its existing
-`profile_from_provider` has no anchor and the
-`lastfm_evidence_from_provider` path creates synthetic
-`seed-1` IDs, so additional provider-neutral host flow review
-is needed. Do not modify Lab to understand Essentia.
+Lab's `_guidanceHostPayload()` already forwards `anchors` to its
+native mixer via `/api/guidance/score`; the pinned native
+`bliss-mixer` source also forwards `request.anchors` into
+`GuidanceRequest::Prepare` with a native regression test.
+Thus the shared Perl runtime patch fixes the **standalone generic
+JSONL runtime**; it is not sufficient to populate missing seed
+context in Lab's existing `profile_from_provider()` call.
 
-At the time of this update the current GitHub integration does
-not have write access to `lms-bliss-guidance-host`, so no
-change was made there. The provider-only offline native test
-does **not** validate this missing generic transport step.
+The current `profile_from_provider()` uses an anchor-free global
+score context. The separate `lastfm_evidence_from_provider()`
+constructs host route IDs such as `seed-1`. Those IDs are valid
+provider-neutral SPI IDs, but an Essentia exact-key artifact
+must map its *same* anchor ID to the correct root-relative
+`track_file`; it must not silently assume `seed-1` is an LMS URL.
+
+### Dependency pin caveat
+
+The native mixer release provenance pins `bliss-mixer` commit
+`5f2430a` and its `bliss-playlist-guidance-spi` dependency to
+`773b1a6`; at that pinned SPI commit, `GuidanceHostRequestV1`
+and its JSON schema contain the optional `anchors` field.
+The **current** `bliss-playlist-guidance-spi/main` lacks the
+host request field. Do not assume an unpinned `main` build has
+the same ABI/schema or silently change that contract. Review
+source and pin compatibility separately before changing native
+mixer releases.
+
+### Cross-repository integration evidence
+
+CI now pins shared-host research commit `d05a043b` alongside
+the unchanged independent native Essentia SPI revision and
+runs `ImportedSidecarPilot` through
+`Plugins::BlissGuidance::Runtime::score_batch()` with the
+actual `anchors`, `context` and `candidates` from its bounded
+Windows-to-Pi sidecar projection. It additionally verifies
+fail-closed behavior when the seed is missing or is replaced
+with a synthetic unbound ID. Neither test runs an LMS
+plugin, changes a player queue, or activates provider scoring.
 
 ## Next gated milestone
 
