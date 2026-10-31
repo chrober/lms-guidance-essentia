@@ -268,7 +268,7 @@ SKIP: {
 # This is NOT an active Lab/DSTM call or Lyrion plugin deployment.
 my $host_source = $ENV{ESSENTIA_SHARED_HOST_SRC} || '';
 SKIP: {
-    skip 'pinned shared host + independent native provider not available', 8
+    skip 'pinned shared host + independent native provider not available', 12
         unless $host_source && -f File::Spec->catfile($host_source,
             'Plugins', 'BlissGuidance', 'Runtime.pm')
             && $native && -x $native;
@@ -318,7 +318,25 @@ SKIP: {
     my $misaligned = Plugins::BlissGuidance::Runtime::score_batch(
         $config, { %$request, anchors => [$fake_anchor] });
     ok(!$misaligned->{valid},
-        'synthetic seed-1 is not silently substituted for the pinned exact track ID');
+        'unbound seed-2 is not silently substituted for the pinned seed-1 track ID');
+    my $spoofed_url = Plugins::BlissGuidance::Runtime::score_batch(
+        $config, { %$request, anchors => [{
+            %{$bundle->{anchors}[0]},
+            candidate_id => 'file:///unrelated-track.flac',
+        }] });
+    ok(!$spoofed_url->{valid},
+        'native verifier rejects a seed-1 URL changed after SHA-256 artifact pinning');
+    is_deeply($spoofed_url->{signals}, [],
+        'spoofing the source URL cannot introduce active guidance');
+    my $spoofed_hash = Plugins::BlissGuidance::Runtime::score_batch(
+        $config, { %$request, anchors => [{
+            %{$bundle->{anchors}[0]},
+            lms_urlmd5 => 'f' x 32,
+        }] });
+    ok(!$spoofed_hash->{valid},
+        'native verifier rejects a seed-1 urlmd5 changed after artifact pinning');
+    is_deeply($spoofed_hash->{signals}, [],
+        'spoofing the source hash cannot introduce active guidance');
 }
 
 done_testing();
