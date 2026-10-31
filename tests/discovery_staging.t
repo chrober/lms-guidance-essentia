@@ -24,8 +24,9 @@ my $host = $ENV{ESSENTIA_SHARED_HOST_SRC} || '';
 plan skip_all => 'pinned generic host checkout is required'
     unless $host && -f File::Spec->catfile(
         $host, 'Plugins', 'BlissGuidance', 'Discovery.pm');
-require File::Spec->catfile(
+my $discovery_path = File::Spec->catfile(
     $host, 'Plugins', 'BlissGuidance', 'Discovery.pm');
+require $discovery_path;
 
 my $discovery = Plugins::BlissGuidance::Discovery::discover();
 is(scalar(@{$discovery->{providers}}), 1,
