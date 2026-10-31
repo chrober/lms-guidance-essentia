@@ -61,8 +61,8 @@ the private temporary directory after the test session.
 
 ## Verification
 
-[Current provider CI run 41217718930](https://github.com/chrober/lms-guidance-essentia/actions/runs/41217718930)
-passes **207 Perl tests** and **78 native-step Perl assertions** through
+[Current provider CI run 41217995136](https://github.com/chrober/lms-guidance-essentia/actions/runs/41217995136)
+passes **208 Perl tests** and **78 native-step Perl assertions** through
 the independent compiled Rust SPI process. The native Rust repository's
 separate Linux/Windows CI also passes at commit `ed944372`.
 `tests/imported_sidecar_pilot.t` creates a Windows-origin
@@ -172,7 +172,7 @@ missing/foreign route IDs, altered source URLs and changed
 `urlmd5` values **after** the artifact is generated, and continues
 to receive `signals=[]`. Neither test invokes a live LMS plugin,
 changes a player queue, or activates provider scoring.
-See [provider CI #41217718930](https://github.com/chrober/lms-guidance-essentia/actions/runs/41217718930).
+See [provider CI #41217995136](https://github.com/chrober/lms-guidance-essentia/actions/runs/41217718930).
 
 ## Next gated milestone
 
