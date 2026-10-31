@@ -1,5 +1,22 @@
 # Bliss Guidance: Essentia (Lyrion provider)
 
+## Architecture correction (31 October 2026)
+
+**BlissMixerLab is provider-neutral.** The Lyrion plugin in this repository,
+not the Lab host, owns Essentia-specific identity, root and source-generation
+verification as well as bounded read-only feature projection. The native
+provider is invoked **only through the existing Guidance SPI v2**; the
+Lab-owned direct Essentia subprocess and modules were deleted.
+
+This branch now contains experimental `EssentiaGuidance/ExactIdentity.pm`
+and `EssentiaGuidance/BoundedSnapshot.pm` with independent offline tests.
+**The plugin remains non-installable and not registered**, with no
+`Plugin.pm`, runtime integration or active guidance. A missing authoritative
+cross-database generation/root witness still blocks real host use.
+
+See [provider-owned SPI and provenance contract]
+(docs/provider-owned-spi-shadow-20261031.md).
+
 **Status: Lyrion plugin remains design-only and is not installable. The separate native [Essentia Guidance Draft PR #1](https://github.com/chrober/bliss-guidance-essentia/pull/1) now contains a real, tested, shadow-neutral SPI v2 executable. It emits no active Guidance signals and has not been packaged or connected to Lyrion hosts.**
 
 A future independently installable, passive Lyrion guidance provider, following the conventions of [`lms-guidance-lastfm`](https://github.com/chrober/lms-guidance-lastfm) and [`lms-guidance-library-signals`](https://github.com/chrober/lms-guidance-library-signals). It will expose an optional [`bliss-guidance-essentia`](https://github.com/chrober/bliss-guidance-essentia) native provider using the host-independent [`essentia-similarity`](https://github.com/chrober/essentia-similarity) engine to compatible Lyrion hosts: [BlissMixerLab](https://github.com/chrober/lms-blissmixer-lab) first, then [Better Call Bliss](https://github.com/chrober/lms-better-call-bliss).
