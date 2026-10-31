@@ -155,13 +155,17 @@ factory remains unavailable even if a native executable exists.
   result contract, read-only SQLite projection and a true generic
   Perl Host → native Rust SPI JSONL session against a synthetic
   Windows-to-Pi transfer fixture.
-- **Still required:** a real running staging Lyrion installation,
-  Lyrion `Slim::Schema::Track` fixture from a manually scanned
-  subset, true Windows/Pi source-root mapping, ARM native build and
-  CPU/RAM testing, portable native binary distribution and licensing
-  review, and explicit real-host trusted acquisition/cleanup lifecycle
-  for any future *normal* Guidance provider integration.
+- **Real LMS 9.1.2 staging CI:** the actual PluginManager discovers
+  the disabled plugin; an explicitly enabled *staging-only copy*
+  loads the read-only settings page and reports the authentic
+  unavailable reason.
+  [Two-job matrix proof](https://github.com/chrober/lms-guidance-essentia/actions/runs/41235274969).
+- **Still required:** a real Lyrion `Slim::Schema::Track` cohort
+  from manually Windows-analyzed songs, true Windows/Pi source-root
+  mapping, ARM native binary and CPU/RAM tests, native distribution
+  and licensing review, and verified trusted acquisition/cleanup
+  lifecycle for any future normal Guidance use.
 
-The intended next step is a real, strictly **passive staging-server
-smoke test**, not a merge, native release, product activation or change
-to the production Pi.
+The next gate is real song/feature mapping and an explicitly passive
+native probe in **isolated staging**, not a merge, native release,
+product activation or change to the production Pi.
