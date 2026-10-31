@@ -19,6 +19,10 @@ Research implementation on Draft PR #1 now contains:
   missing features, strict resource bounds, source read-only behavior
   and canonical JSONL transport with the independent native provider.
 
+The [native integration CI](https://github.com/chrober/lms-guidance-essentia/actions/runs/41197043974)
+passes 94 offline Perl tests and 12 true native SPI JSONL assertions, while
+preserving `signals=[]` and identical host-admitted candidate identities.
+
 **This is not an installable or functional Lyrion plugin**: no
 `install.xml`, settings UI, release binary, authoritative source-generation
 proof or multi-root source witness has been added. The positive research
