@@ -82,13 +82,9 @@ my @requests = (
         options => $bundle->{options},
         artifacts => $bundle->{artifacts},
         resources => $bundle->{resources},
-        anchors => [{
-            anchor_id => $bundle->{anchors}[0]{anchor_id},
-            track => {
-                candidate_id => $bundle->{anchors}[0]{candidate_id},
-                database_file => $bundle->{anchors}[0]{database_file},
-            },
-        }],
+        # Canonical Anchor uses #[serde(flatten)] Candidate, never a nested
+        # `track` object. Keep the exact provider-owned SPI envelope.
+        anchors => $bundle->{anchors},
     },
     {
         type => 'score', spi_version => 2,
