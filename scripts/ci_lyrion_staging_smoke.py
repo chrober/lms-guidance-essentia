@@ -6,6 +6,7 @@ disabled by default. It must appear in the real Lyrion plugin manager without
 being selected for native Guidance scoring.
 """
 import json
+import os
 from collections import deque
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlparse
@@ -112,6 +113,36 @@ while queue and len(visited) < 35:
 if not found:
     sys.exit("FAIL: staged plugin not visible in examined real Lyrion management pages")
 
+
+# A second job enables the *copy* of install.xml inside the throwaway
+# staging volume. Only there may the normal Lyrion Settings page load;
+# the provider must still be unavailable and have no scoring controls.
+if os.environ.get("STAGING_ENABLED", "false").lower() == "true":
+    options = [
+        "/Default/plugins/EssentiaGuidance/settings/essentiaguidance.html",
+        "/Default/settings/plugins/EssentiaGuidance/settings/essentiaguidance.html",
+        "/Default/settings/essentiaguidance.html",
+        "/plugins/EssentiaGuidance/settings/essentiaguidance.html",
+    ]
+    # Include links that the *real* web PluginManager displayed.
+    for link in discovered if 'discovered' in globals() else []:
+        if "essentia" in link.lower():
+            options.insert(0, link)
+    verified = False
+    for url in dict.fromkeys(options):
+        try:
+            status, _, body = fetch(url)
+        except (HTTPError, URLError, TimeoutError, OSError) as err:
+            print(f"INFO: staging settings route {url}: {err}")
+            continue
+        has_status = "source_generation_and_root_provenance_unverified" in body
+        print(f"INFO: staging status page {url} -> {status}, unavailable={has_status}")
+        if has_status:
+            verified = True
+            print("PASS: genuine enabled staging Lyrion plugin renders unavailable status")
+            break
+    if not verified:
+        sys.exit("FAIL: enabled staging plugin did not show the read-only unavailable status")
 
 # A default-disabled plugin must never be implicitly launched by the
 # real server. Assertions on the source contract are already separate
