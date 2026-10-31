@@ -51,6 +51,28 @@ sub write_artifact {
     my $job_id = $args{job_id};
     my $directory = $args{directory};
     my $windows = $args{windows} ? 1 : 0;
+    # Optional OFFLINE host-route binding. A SPI anchor_id ("seed-1") is
+    # a job-local token, not the Lyrion URL. Accept it only when its
+    # candidate_id AND lms_urlmd5 match the trusted seed track object.
+    my $seed_binding = $args{seed_anchor_binding};
+    if (defined $seed_binding) {
+        die 'malformed host seed anchor binding'
+            unless ref($seed_binding) eq 'HASH'
+                && defined($seed_binding->{anchor_id})
+                && !ref($seed_binding->{anchor_id})
+                && $seed_binding->{anchor_id} =~ /\Aseed-[1-9][0-9]{0,5}\z/
+                && defined($seed_binding->{candidate_id})
+                && !ref($seed_binding->{candidate_id})
+                && defined($seed_binding->{lms_urlmd5})
+                && !ref($seed_binding->{lms_urlmd5})
+                && $seed_binding->{lms_urlmd5} =~ /\A[a-f0-9]{32}\z/i;
+        die 'host seed is not the original Lyrion source identity'
+            unless ref($anchors) eq 'ARRAY' && @$anchors == 1
+                && defined(eval { $anchors->[0]->url })
+                && $seed_binding->{candidate_id} eq $anchors->[0]->url
+                && defined(eval { $anchors->[0]->urlmd5 })
+                && $seed_binding->{lms_urlmd5} eq $anchors->[0]->urlmd5;
+    }
 
     die 'one anchor is required'
         unless ref($anchors) eq 'ARRAY' && @$anchors == 1;
@@ -65,15 +87,24 @@ sub write_artifact {
         unless defined($directory) && -d $directory;
 
     my (%seen_ids, %seen_keys, @tracks);
+    my $index = 0;
     for my $track (@$anchors, @$candidates) {
         my ($id, $key) = _exact_file_key($track, $roots, $windows);
+        if ($index == 0 && $seed_binding) {
+            # Preserve only the verified route token as the pinned artifact
+            # key. The actual song URL is carried separately in the SPI
+            # anchor candidate_id; candidates keep their original file URLs.
+            $id = $seed_binding->{anchor_id};
+        }
         die 'duplicate track identity' if $seen_ids{$id}++;
         die 'ambiguous track key' if $seen_keys{$key}++;
         die 'unverified exact feature identity' unless $verify->($key);
         push @tracks, { track_id => $id, track_file => $key };
+        $index++;
     }
 
-    return _emit_artifact(\@tracks, $job_id, $directory);
+    return _emit_artifact(\@tracks, $job_id, $directory,
+        $seed_binding ? 1 : 0);
 }
 
 # Offline-only bridge from the stronger, independently audited content proof.
@@ -95,7 +126,7 @@ sub write_content_attested_artifact {
 }
 
 sub _emit_artifact {
-    my ($tracks, $job_id, $directory) = @_;
+    my ($tracks, $job_id, $directory, $bound_seed_alias) = @_;
     die 'complete bounded cohort required'
         unless ref($tracks) eq 'ARRAY' && @$tracks >= 3 && @$tracks <= 51;
     die 'valid job ID required'
@@ -105,17 +136,25 @@ sub _emit_artifact {
         unless defined($directory) && !ref($directory)
             && -d $directory && !-l $directory;
     my (%ids, %keys);
+    my $row_index = 0;
     for my $row (@$tracks) {
         die 'invalid verified row' unless ref($row) eq 'HASH';
         my ($id, $key) = @$row{qw(track_id track_file)};
+        my $source_url = defined($id) && !ref($id)
+            && $id =~ /\Afile:\/\//i;
+        my $verified_host_token = $bound_seed_alias && $row_index == 0
+            && defined($id) && !ref($id)
+            && $id =~ /\Aseed-[1-9][0-9]{0,5}\z/;
         die 'duplicate/unsafe verified row'
             unless defined($id) && !ref($id) && length($id) <= 4096
-                && $id =~ /\Afile:\/\//i && index($id, "\0") < 0
+                && ($source_url || $verified_host_token)
+                && index($id, "\0") < 0
                 && defined($key) && !ref($key) && length($key)
                 && length($key) <= 4096 && index($key, "\0") < 0
                 && $key !~ m{(?:\A|/)\.\.?(?:/|\z)}
                 && $key !~ m{//} && $key !~ m{\A/}
                 && !$ids{$id}++ && !$keys{$key}++;
+        $row_index++;
     }
     my $bytes = JSON::PP->new->canonical->utf8->encode({
         schema => 'essentia-exact-track-keys-v1',
