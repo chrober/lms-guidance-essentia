@@ -97,6 +97,16 @@ window, CUE identity, Windows/UNC portability, native filesystem hard-link
 aliasing, or safe sub-500ms latency for full-file hashing. Even one
 long FLAC file can be expensive to hash on a Raspberry Pi.
 
+**Scanner decoding race:** `essentia-analyser` obtains file stat before
+analysis and currently calculates its file SHA-256 after audio decoding.
+It does not yet prove that the bytes decoded by its worker and the bytes
+hashed afterward were from an unchanged file throughout that scan.
+Thus an offline SHA match proves agreement with the scanner's **recorded
+file hash**, conditional on the source not having changed during its original
+analysis. A scanner-side before/after file-stability check (or stronger
+same-descriptor evidence) is a separate hardening requirement before
+claiming complete source-to-feature provenance.
+
 **Production gate stays closed.** A later provider-controlled scan
 generation / root-map witness, or another explicitly reviewed per-track
 freshness contract, must be built with the scanner and host before the
