@@ -1,8 +1,9 @@
 # Cross-source generation and root witness — design gate (31 October 2026)
 
-**Status: contract proposal only.** Not implemented in Lyrion, the scanner,
-or the normal provider factory. The provider remains `available=0` and
-the generic BlissMixerLab host and Guidance SPI v2 remain unchanged.
+**Status: offline catalog/root fingerprint implemented, authoritative shared
+generation contract still a proposal.** Not implemented in the Lyrion
+scanner lifecycle or normal provider factory. `Provider.pm` still returns
+`available=0`, and generic BlissMixerLab/Guidance SPI v2 remain unchanged.
 
 ## Why a content SHA alone is insufficient
 
@@ -15,6 +16,65 @@ directories can contain the same relative path. SQLite-v3
 timestamps, `rowid`, database inode or `PRAGMA data_version` as a shared
 generation marker would be unsound.
 
+## Verified upstream scan signal semantics
+
+The actual [Lyrion server repository](https://github.com/LMS-Community/slimserver)
+and [CLI database reference](https://lyrion.org/reference/cli/database/)
+expose `rescan ?` (scanning-in-progress) and a
+[`rescan done` notification](https://github.com/LMS-Community/slimserver/blob/public/9.2/Slim/Control/Request.pm)
+plus `library changed`. `serverstatus` can report `lastscan`.
+The upstream [scanner.pl](https://github.com/LMS-Community/slimserver/blob/public/9.2/scanner.pl)
+marks scan state, incrementally commits during a scan, calls
+`setLastScanTime` only if the importer reports changes, then runs
+the final post-scan database helper.
+
+**None is a durable immutable cross-database epoch.** The same `lastscan`
+timestamp can survive an unchanged scan; notifications may be missed
+across server/plugin restarts; metadata timestamps and the scanner's
+read transaction are not a shared atomic snapshot. Treat them as
+**invalidation/negative gates**, not a proof of matching generations.
+
+## Implemented: bounded offline Bliss catalog and root fingerprint
+
+`EssentiaGuidance/CatalogFingerprint.pm` now hashes all nonignored
+`TracksV2.File` rows under one pinned, readonly SQLite transaction,
+in deterministic binary collation order. An explicit provider-supplied
+map of stable logical root IDs to canonical *host-local* physical
+music roots is hashed separately. The combined versioned SHA-256 binds
+both the entire eligible Bliss catalog and the host root configuration.
+All keys are length-delimited UTF-8 fields and the scan has fixed
+1-million-track / 64-MiB default bounds (256 MiB hard cap).
+
+`CatalogFingerprint::assert_fresh` opens a **new** readonly SQLite
+read transaction and recomputes both digests. Re-reading the original
+WAL-pinned DB handle would silently miss a concurrent catalog change.
+Duplicate eligible keys, overlapping/duplicate roots, noncanonical
+paths, unbounded content, writable database handles and absent
+explicit research opt-in all fail closed.
+
+`SpiResourceBundle.pm` optionally accepts `catalog_roots` for offline
+`verify_audio_content=1` research cohorts. It requires an exact
+1:1 match with `media_dirs`, hashes the full catalog before creating
+SPI resources, then performs the independent fresh-read check before
+returning the bounded artifact/resource pair. The returned audit
+fingerprint can be checked again **after** the native SPI exchange;
+the native SPI wire schema is unchanged.
+
+[Native integration CI](https://github.com/chrober/lms-guidance-essentia/actions)
+covers the successful unchanged snapshot and deliberately changes
+the Bliss catalog after the native SPI exchange to ensure a
+**post-run recheck rejects the old fingerprint**. Independent
+`tests/catalog_fingerprint.t` exercises WAL concurrent modification,
+root-ID changes, invalid roots, duplicate key collisions and limits.
+
+**Crucial limits:** Root IDs are caller-provided and currently **not**
+authenticated by an authoritative Lyrion root registry. A content
+fingerprint is not a durable host generation or scanner-side receipt.
+It detects differences between snapshots, not intervening changes
+that are reversed between reads (ABA). Do not call the fingerprint
+`lyrion-library-generation-v1` or use it to enable `Provider.pm`.
+Full-catalog enumeration is intentionally **offline**; no full scan
+or file hashing may run in the latency-sensitive mixer scoring path.
 ## Proposed contracts (not yet source-backed)
 
 1. **Host-owned catalog witness**: obtain from an authoritative Lyrion
