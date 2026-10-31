@@ -19,6 +19,16 @@ jobs:
   real-lms-plugin-manager:
     runs-on: ubuntu-24.04
     timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - phase: disabled-by-default
+            enable_local: false
+          - phase: explicitly-enabled-staging-only
+            enable_local: true
+    env:
+      STAGING_ENABLED: ${{ matrix.enable_local }}
     steps:
       - uses: actions/checkout@v4
       - name: Confirm research plugin has no native binaries
@@ -36,13 +46,19 @@ jobs:
           fi
       - name: Stage plugin in a disposable official Lyrion config volume
         run: |
-          STAGING="$RUNNER_TEMP/lyrion-essentia-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          STAGING="$RUNNER_TEMP/lyrion-essentia-${{ matrix.phase }}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           echo "STAGING=$STAGING" >> "$GITHUB_ENV"
           mkdir -p "$STAGING/config/cache/Plugins/EssentiaGuidance" "$STAGING/music" "$STAGING/playlists"
           cp -a EssentiaGuidance/. "$STAGING/config/cache/Plugins/EssentiaGuidance/"
+          # Only the disposable second matrix job tests an enabled install.
+          # Git checkout, PR and the production plugin keep 'disabled'.
+          if [ "$STAGING_ENABLED" = 'true' ]; then
+            sed -i 's/<other>disabled<\/other>/<other>enabled<\/other>/' "$STAGING/config/cache/Plugins/EssentiaGuidance/install.xml"
+            grep -q '<other>enabled</other>' "$STAGING/config/cache/Plugins/EssentiaGuidance/install.xml"
+          fi
           chmod -R a+rX "$STAGING/config/cache/Plugins/EssentiaGuidance"
           chmod a+rwx "$STAGING/config" "$STAGING/config/cache" "$STAGING/config/cache/Plugins"
-          echo 'PASS: only a disposable config volume, empty music directory and disabled plugin were staged'
+          echo "PASS: disposable Lyrion config, empty music, staging plugin enabled only for testing: $STAGING_ENABLED"
       - name: Start genuine official Lyrion stable image, bound to loopback only
         run: |
           docker pull lmscommunity/lyrionmusicserver:9.1.2-stable
@@ -68,7 +84,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: essentia-lyrion-staging-smoke-logs
+          name: essentia-lyrion-staging-smoke-logs-${{ matrix.phase }}
           path: ${{ runner.temp }}/essentia-lms-evidence/
           if-no-files-found: ignore
           retention-days: 3
