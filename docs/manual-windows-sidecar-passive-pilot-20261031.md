@@ -176,10 +176,18 @@ See [provider CI #41217995136](https://github.com/chrober/lms-guidance-essentia/
 
 ## Next gated milestone
 
-After a reviewed provider-neutral host fix, make the Lyrion
-plugin installable in an explicit **passive-only** opt-in mode,
-using trusted candidate/seed identities and the manually
-transferred read-only sidecar, without automatic scanning.
-Only then run a bounded real-server pilot on the Pi. Keep
-the normal provider unavailable until those conditions are
-demonstrated, and do not merge prematurely.
+A **staging-installable** research shell and a manually invoked
+`PassiveProbe::run()` now exist, with explicit opt-in, the existing
+generic JSONL host runtime, a normal provider status that always
+remains unavailable, private SQLite resource cleanup and full
+CI test coverage. GitHub Actions publishes a 7-day, native-binary-free
+staging ZIP. See the separate
+[isolated install/probe runbook](manual-passive-lms-plugin-staging-20261031.md).
+
+**Not yet tested:** install and plugin-manager registration inside a
+fully running Lyrion staging server, real `Slim::Schema::Track`
+objects, an actually Windows-analyzed and manually transferred
+feature cohort, and a Pi-native executable. These are explicit
+next validation gates. Normal host status must remain unavailable,
+there must be no automatic analysis at library updates or active
+playlist influence, and no research PR should merge prematurely.
