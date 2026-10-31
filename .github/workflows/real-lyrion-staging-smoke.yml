@@ -1,0 +1,78 @@
+name: Real Lyrion staging plugin smoke (branch only)
+
+on:
+  pull_request:
+    paths:
+      - 'EssentiaGuidance/**'
+      - 'scripts/ci_lyrion_staging_smoke.py'
+      - '.github/workflows/real-lyrion-staging-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lyrion-staging-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-lms-plugin-manager:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm research plugin has no native binaries
+        run: |
+          test -f EssentiaGuidance/install.xml
+          test -f EssentiaGuidance/Settings.pm
+          test -f EssentiaGuidance/Bin/SOURCE.md
+          if find EssentiaGuidance/Bin -type f ! -name SOURCE.md | grep -q .; then
+            echo 'Unexpected provider executable in staging shell' >&2
+            exit 1
+          fi
+          if ! grep -q '<other>disabled</other>' EssentiaGuidance/install.xml; then
+            echo 'Provider must remain disabled by default' >&2
+            exit 1
+          fi
+      - name: Stage plugin in a disposable official Lyrion config volume
+        run: |
+          STAGING="$RUNNER_TEMP/lyrion-essentia-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "STAGING=$STAGING" >> "$GITHUB_ENV"
+          mkdir -p "$STAGING/config/cache/Plugins/EssentiaGuidance" "$STAGING/music" "$STAGING/playlists"
+          cp -a EssentiaGuidance/. "$STAGING/config/cache/Plugins/EssentiaGuidance/"
+          chmod -R a+rX "$STAGING/config/cache/Plugins/EssentiaGuidance"
+          chmod a+rwx "$STAGING/config" "$STAGING/config/cache" "$STAGING/config/cache/Plugins"
+          echo 'PASS: only a disposable config volume, empty music directory and disabled plugin were staged'
+      - name: Start genuine official Lyrion stable image, bound to loopback only
+        run: |
+          docker pull lmscommunity/lyrionmusicserver:9.1.2-stable
+          docker run -d --name essentia-gh-smoke \
+            -e HTTP_PORT=19092 -e TZ=Etc/UTC \
+            -p 127.0.0.1:19092:19092/tcp \
+            -v "$STAGING/config:/config:rw" \
+            -v "$STAGING/music:/music:ro" \
+            -v "$STAGING/playlists:/playlist:rw" \
+            --restart no \
+            lmscommunity/lyrionmusicserver:9.1.2-stable
+          echo 'No player/CLI discovery ports are published'
+      - name: Verify real Lyrion server and plugin-manager discovery
+        run: python3 scripts/ci_lyrion_staging_smoke.py
+      - name: Save bounded test evidence (always)
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/essentia-lms-evidence"
+          docker logs essentia-gh-smoke --tail 300 > "$RUNNER_TEMP/essentia-lms-evidence/container.log" 2>&1 || true
+          docker inspect essentia-gh-smoke --format '{{.State.Status}} {{.State.ExitCode}}' > "$RUNNER_TEMP/essentia-lms-evidence/container-state.txt" 2>&1 || true
+          find "$STAGING/config" -maxdepth 4 -type f -name '*log*' -print | head -20 > "$RUNNER_TEMP/essentia-lms-evidence/log-file-list.txt" || true
+      - name: Upload bounded logs for debugging
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: essentia-lyrion-staging-smoke-logs
+          path: ${{ runner.temp }}/essentia-lms-evidence/
+          if-no-files-found: ignore
+          retention-days: 3
+      - name: Destroy the ephemeral Lyrion container
+        if: always()
+        run: |
+          docker rm -f essentia-gh-smoke || true
