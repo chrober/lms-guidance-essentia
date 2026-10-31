@@ -10,6 +10,7 @@ use JSON::PP ();
 use Plugins::EssentiaGuidance::ExactIdentity ();
 use Plugins::EssentiaGuidance::BoundedSnapshot ();
 use Plugins::EssentiaGuidance::SourceProvenance ();
+use Plugins::EssentiaGuidance::CatalogFingerprint ();
 
 # OFFLINE RESEARCH FIXTURE ONLY, not a Lyrion provider entry point.
 # It demonstrates composition of provider-owned source verification and
@@ -49,6 +50,28 @@ sub assemble_research_bundle {
             $arg{bliss_db});
         my $features = Plugins::EssentiaGuidance::BoundedSnapshot::open_source(
             $arg{feature_db});
+        my $catalog_proof;
+        if (exists $arg{catalog_roots}) {
+            die 'catalog proof requires original-file SHA256 audit'
+                unless $arg{verify_audio_content};
+            die 'catalog proof requires explicit matching music root mapping'
+                unless ref($arg{catalog_roots}) eq 'ARRAY'
+                    && ref($arg{media_dirs}) eq 'ARRAY'
+                    && @{$arg{catalog_roots}} == @{$arg{media_dirs}};
+            my %wanted = map { $_ => 1 } @{$arg{media_dirs}};
+            for my $root (@{$arg{catalog_roots}}) {
+                die 'invalid or mismatched music root mapping'
+                    unless ref($root) eq 'HASH'
+                        && defined($root->{host_path})
+                        && exists($wanted{$root->{host_path}})
+                        && delete($wanted{$root->{host_path}});
+            }
+            die 'not all configured roots were mapped' if %wanted;
+            $catalog_proof = Plugins::EssentiaGuidance::CatalogFingerprint::snapshot(
+                research_only => 1, bliss_dbh => $bliss,
+                roots => $arg{catalog_roots},
+            );
+        }
         my ($artifact, @rows, $content_proof);
         if ($arg{verify_audio_content}) {
             # Offline-only full SHA256 of original audio, checked against
@@ -104,6 +127,14 @@ sub assemble_research_bundle {
             destination => $projected,
         );
 
+        # A pinned WAL read is not a freshness check: always open a new,
+        # independent read transaction after resource preparation.
+        if ($catalog_proof) {
+            Plugins::EssentiaGuidance::CatalogFingerprint::assert_fresh(
+                research_only => 1, expected => $catalog_proof,
+                bliss_db => $arg{bliss_db}, roots => $arg{catalog_roots},
+            );
+        }
         $bliss->do('ROLLBACK');
         $features->do('ROLLBACK');
         $bliss->disconnect;
@@ -115,6 +146,12 @@ sub assemble_research_bundle {
         } @rows[1 .. $#rows];
         $result = {
             private_directory => $private,
+            ($catalog_proof ? (catalog_fingerprint => {
+                kind => $catalog_proof->{kind},
+                fingerprint_sha256 => $catalog_proof->{fingerprint_sha256},
+                eligible_tracks => $catalog_proof->{eligible_tracks},
+                generation_verified => JSON::PP::false,
+            }) : ()),
             ($content_proof ? (audio_content_audit => {
                 verified_count => $content_proof->{verified_count},
                 music_root_count => $content_proof->{music_root_count},
