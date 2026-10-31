@@ -121,8 +121,12 @@ my @replies = map { decode_json($_) } @responses;
 is($replies[0]{type}, 'manifest', 'native provider emitted canonical manifest');
 is($replies[0]{provider_id}, 'essentia-guidance',
     'manifest matches Lyrion discovery facade');
+diag('native prepare code=' . ($replies[1]{code} || '<none>')) unless $replies[1]{type} eq 'prepared';
 is($replies[1]{type}, 'prepared', 'native SPI accepted provider-owned artifact and projected resource');
 is($replies[2]{type}, 'scores', 'native SPI accepted exact complete global candidate batch');
+diag('native score state=' . ($replies[2]{diagnostics}{state} || '<none>')
+     . ' reason=' . ($replies[2]{diagnostics}{details}{reason} || '<none>'))
+    unless ($replies[2]{diagnostics}{state} || '') eq 'shadow_evaluated_no_active_signals';
 is($replies[2]{diagnostics}{state}, 'shadow_evaluated_no_active_signals',
     'geometry was evaluated without active guidance');
 is_deeply($replies[2]{signals}, [], 'no live candidate influence possible');
