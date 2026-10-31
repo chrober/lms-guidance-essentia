@@ -70,10 +70,12 @@ production Pi's `Plugins` directory.
    redistribute native binaries until the separate GPL/Essentia/ONNX
    dependency and licensing review is approved.
 
-This staging workflow does **not** yet prove that the actual LMS
-PluginManager can load the plugin in a full running server. Automated
-tests stage the same install layout with stub LMS modules; real server
-installation is a later explicit acceptance gate.
+The **real Lyrion 9.1.2 smoke test now proves** that the actual
+PluginManager lists the plugin in its standard disabled state, and that
+the server-side status page renders the correct unavailable reason
+when enabled **only in an ephemeral staging copy**. This does *not*
+test the real DSTM provider scoring path or a physical Raspberry Pi.
+See [real LMS Docker staging proof](real-lyrion-staging-smoke-20261031.md).
 
 ## Bounded manual passive test
 
