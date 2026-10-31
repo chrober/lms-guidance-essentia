@@ -2,14 +2,13 @@
 """Smoke-check a genuine isolated Lyrion process; no players/music needed.
 
 The plugin is installed in a throwaway /config/cache/Plugins tree and remains
-from collections import deque
-from html.parser import HTMLParser
-from urllib.parse import urljoin, urlparse
 disabled by default. It must appear in the real Lyrion plugin manager without
 being selected for native Guidance scoring.
 """
 import json
-import os
+from collections import deque
+from html.parser import HTMLParser
+from urllib.parse import urljoin, urlparse
 import sys
 import time
 from urllib.error import HTTPError, URLError
