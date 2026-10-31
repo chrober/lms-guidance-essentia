@@ -35,16 +35,6 @@ sub write_audio {
     print {$out} $content or die $!;
     close $out or die $!;
 }
-sub run_audit {
-    my (%override) = @_;
-    return Plugins::EssentiaGuidance::SourceProvenance::attest_cohort(
-        research_only => 1, anchors => [$seed], candidates => [$a, $b],
-        media_dirs => \@roots, bliss_dbh => $bliss, feature_dbh => $features,
-        model_id => 'genre', expected_model_key => 'pinned-v3',
-        max_file_bytes => 4096, max_total_bytes => 8192, %override,
-    );
-}
-
 my $dir = tempdir('provenance-fixture-XXXXXXXX', TMPDIR => 1, CLEANUP => 1);
 my $root_a = "$dir/rootA";
 my $root_b = "$dir/rootB";
@@ -87,6 +77,17 @@ $wf->disconnect;
 my $bliss = Plugins::EssentiaGuidance::BoundedSnapshot::open_source($bliss_file);
 my $features = Plugins::EssentiaGuidance::BoundedSnapshot::open_source($features_file);
 
+sub run_audit {
+    my (%override) = @_;
+    return Plugins::EssentiaGuidance::SourceProvenance::attest_cohort(
+        research_only => 1, anchors => [$seed], candidates => [$a, $b],
+        media_dirs => \@roots, bliss_dbh => $bliss, feature_dbh => $features,
+        model_id => 'genre', expected_model_key => 'pinned-v3',
+        max_file_bytes => 4096, max_total_bytes => 8192, %override,
+    );
+}
+
+
 my $proof = run_audit();
 is($proof->{kind}, 'essentia-audio-content-cohort-v1',
     'auditor declares a content-only proof, not a generation proof');
@@ -104,7 +105,7 @@ my $collision = eval { run_audit(); 1 };
 ok(!$collision, 'duplicated relative track key across roots rejected');
 unlink("$root_b/a.flac");
 
-my $same_size = 'A updated audio!!';
+my $same_size = 'A altered audio!';
 is(length($same_size), length($audio[1]), 'same-size mutation fixture');
 write_audio($paths[1], $same_size);
 my $mutated = eval { run_audit(); 1 };
