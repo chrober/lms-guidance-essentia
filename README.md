@@ -20,10 +20,14 @@ objects, a manually copied SQLite-v3 sidecar and a pinned local
 native executable. It removes temporary private artifacts on both
 success and failure, and can only return `signals=[]`.
 
-**This is not a published LMS plugin release, not an automatically
-activated provider and not yet verified on a running staging Lyrion.**
-No production Pi, model download, automatic scan or mixer scoring
-has been touched.
+**Real Lyrion 9.1.2 staging verification now passes:** the actual
+plugin manager lists Essentia while default-disabled; when enabled
+only in a disposable copy, the real server loads its status page
+and correctly displays the missing provenance witness.
+[Two-job real Lyrion CI](https://github.com/chrober/lms-guidance-essentia/actions/runs/41235274969).
+This is **not** a published LMS plugin release, real song/feature
+scoring, or an automatically enabled provider. No production Pi,
+model download, automatic scan or mixer scoring has been touched.
 
 See [staging installation and manual passive probe runbook]
 (docs/manual-passive-lms-plugin-staging-20261031.md).
