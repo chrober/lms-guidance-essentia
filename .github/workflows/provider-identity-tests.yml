@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: chrober/bliss-guidance-essentia
-          ref: de72433d9c690e1aa46e973bbcca63691e959df8
+          ref: ed9443725b9112203cb10d72a3efd65de79859ed
           path: _native_provider
           persist-credentials: false
       - name: Checkout corrected generic SPI-v2 Perl host (research PR SHA only)
