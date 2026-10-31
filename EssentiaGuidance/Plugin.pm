@@ -12,7 +12,7 @@ sub getDisplayName { return 'PLUGIN_ESSENTIAGUIDANCE_NAME'; }
 sub initPlugin {
     my $class = shift;
     _load_strings();
-    if (main::WEBUI) {
+    if (defined(&main::WEBUI) && main::WEBUI()) {
         require 'Plugins/EssentiaGuidance/Settings.pm';
         Plugins::EssentiaGuidance::Settings->new;
     }
