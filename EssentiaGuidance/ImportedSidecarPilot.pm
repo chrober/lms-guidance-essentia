@@ -52,6 +52,16 @@ sub assemble_pilot_bundle {
         unless ref($arg{anchors}) eq 'ARRAY' && @{$arg{anchors}} == 1
             && ref($arg{candidates}) eq 'ARRAY'
             && @{$arg{candidates}} >= 2 && @{$arg{candidates}} <= 50;
+    # Caller-supplied generic host anchors are optional for the original
+    # direct offline API. When supplied, bind the separate route token to
+    # the trusted original Lyrion track BEFORE generating the immutable
+    # exact-key artifact. Never claim a route token equals a file URL.
+    my $host_anchors = $arg{host_anchors};
+    die 'exactly one source host anchor required for bounded route binding'
+        if defined($host_anchors)
+            && (ref($host_anchors) ne 'ARRAY' || @$host_anchors != 1
+                || ref($host_anchors->[0]) ne 'HASH');
+    my $seed_binding = defined($host_anchors) ? $host_anchors->[0] : undef;
     die 'trusted absolute private workspace required'
         unless defined($arg{directory}) && !ref($arg{directory})
             && File::Spec->file_name_is_absolute($arg{directory})
@@ -124,6 +134,8 @@ sub assemble_pilot_bundle {
             anchors => $arg{anchors}, candidates => $arg{candidates},
             media_dirs => [$root], verify_key => $verify,
             job_id => $arg{job_id}, directory => $private,
+            (defined($seed_binding)
+                ? (seed_anchor_binding => $seed_binding) : ()),
         );
         $stmt->finish;
         open my $fh, '<:raw', $artifact->{path}
@@ -167,7 +179,12 @@ sub assemble_pilot_bundle {
             },
             anchors => [{
                 anchor_id => $seed->{track_id},
-                candidate_id => $seed->{track_id},
+                # In generic host mode the verified anchor token is seed-N,
+                # but the track identity remains the original file URL.
+                candidate_id => defined($seed_binding)
+                    ? $seed_binding->{candidate_id} : $seed->{track_id},
+                (defined($seed_binding)
+                    ? (lms_urlmd5 => $seed_binding->{lms_urlmd5}) : ()),
                 database_file => $seed->{track_file},
             }],
             context => {
@@ -179,6 +196,8 @@ sub assemble_pilot_bundle {
             passive_only => JSON::PP::true,
             audit => {
                 admitted_tracks => scalar(@$rows),
+                host_route_bound => defined($seed_binding)
+                    ? JSON::PP::true : JSON::PP::false,
                 model_status => $validated ? 'validated' : 'experimental',
                 source_bytes_verified => JSON::PP::false,
                 catalog_generation_verified => JSON::PP::false,
