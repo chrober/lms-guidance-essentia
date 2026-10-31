@@ -1,5 +1,28 @@
 # Cross-source generation and root witness — design gate (31 October 2026)
 
+## Scope clarification: no analyser trigger on LMS library updates
+
+The initial integration **will not** link `essentia-analyser` execution
+to rescan events, scan completion, `lastscan`, `library changed` or
+an LMS plugin hook. A manual Windows offline scan of a consistent
+Bliss catalog copy creates the feature sidecar. Lyrion on the Pi
+can later inspect a manually transferred, read-only SQLite snapshot
+via the existing Guidance SPI v2. Partial feature coverage is
+acceptable for bounded **passive** research; missing or stale
+candidate features remain neutral.
+
+This document's proposed immutable host epoch/root-qualified scanner
+receipt is a **later production active-ranking safety project**,
+not a condition for scheduling or running the first manual offline
+analysis. Full-catalog fingerprinting may be useful offline to
+diagnose changes, but it must not run in the mixer or cause
+automatic rescans. Even when we eventually adopt catalog epochs,
+source freshness verification and triggering analysis are separate
+concerns; neither implies the other.
+
+See [the agreed Windows-first staged plan]
+(windows-offline-first-spi-integration-20261031.md).
+
 **Status: offline catalog/root fingerprint implemented, authoritative shared
 generation contract still a proposal.** Not implemented in the Lyrion
 scanner lifecycle or normal provider factory. `Provider.pm` still returns
