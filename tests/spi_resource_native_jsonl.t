@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use File::Temp qw(tempdir);
+use Digest::SHA qw(sha256_hex);
 use File::Spec;
 use FindBin;
 use IPC::Open3 qw(open3);
@@ -28,6 +29,10 @@ require 'EssentiaGuidance/SpiResourceBundle.pm';
 require 'EssentiaGuidance/Provider.pm';
 
 my $dir = tempdir(CLEANUP => 1);
+my $root_a = File::Spec->catdir($dir, 'music_a');
+my $root_b = File::Spec->catdir($dir, 'music_b');
+mkdir($root_a) or die $!;
+mkdir($root_b) or die $!;
 my $bliss_path = File::Spec->catfile($dir, 'bliss.db');
 my $features_path = File::Spec->catfile($dir, 'features.db');
 my $bliss = DBI->connect("dbi:SQLite:dbname=$bliss_path", '', '', {RaiseError=>1});
@@ -38,39 +43,59 @@ $features->do(q{CREATE TABLE feature_models(
     model_key TEXT PRIMARY KEY, preprocessing_version TEXT, aggregation TEXT,
     classes_json TEXT, validated_against_essentia INTEGER)});
 $features->do(q{CREATE TABLE feature_tracks(
-    track_file TEXT, model_id TEXT, capability TEXT, model_key TEXT,
-    scores_f32_le BLOB, PRIMARY KEY(track_file,model_id))});
+    track_file TEXT, model_id TEXT, capability TEXT, audio_sha256 TEXT,
+    model_key TEXT, scores_f32_le BLOB, PRIMARY KEY(track_file,model_id))});
+$features->do(q{CREATE TABLE feature_track_state(
+    track_file TEXT, model_id TEXT, file_size INTEGER, modified_ns INTEGER,
+    model_key TEXT, PRIMARY KEY(track_file,model_id))});
 $features->do('INSERT INTO feature_models VALUES(?,?,?,?,1)', undef,
     'model-pin', 'preprocessing-v1', 'mean',
     encode_json([map { "class$_" } 0..86]));
 my @names = qw(seed one two);
+my @actual_paths;
 for my $name (@names) {
+    my $actual_root = $name eq 'two' ? $root_b : $root_a;
+    my $audio_path = File::Spec->catfile($actual_root, "$name.flac");
+    my $raw_audio = "Synthetic source bytes for $name / provider SPI fixture";
+    open my $source_fh, '>:raw', $audio_path or die $!;
+    print {$source_fh} $raw_audio or die $!;
+    close($source_fh) or die $!;
+    push @actual_paths, $audio_path;
     $bliss->do('INSERT INTO TracksV2 VALUES (?,0)', undef, "$name.flac");
     my $vector = pack('f<*', map {
         0.05 + ((($_ * 17 + length($name) * 3) % 85) / 100)
     } 0..86);
-    my $insert = $features->prepare('INSERT INTO feature_tracks VALUES(?,?,?,?,?)');
+    my $insert = $features->prepare('INSERT INTO feature_tracks VALUES(?,?,?,?,?,?)');
     $insert->bind_param(1, "$name.flac");
     $insert->bind_param(2, 'genre');
     $insert->bind_param(3, 'genre');
-    $insert->bind_param(4, 'model-pin');
-    $insert->bind_param(5, $vector, DBI::SQL_BLOB());
+    $insert->bind_param(4, sha256_hex($raw_audio));
+    $insert->bind_param(5, 'model-pin');
+    $insert->bind_param(6, $vector, DBI::SQL_BLOB());
     $insert->execute;
     $insert->finish;
+    $features->do('INSERT INTO feature_track_state VALUES(?,?,?,?,?)', undef,
+        "$name.flac", 'genre', length($raw_audio), 0, 'model-pin');
 }
 $bliss->disconnect;
 $features->disconnect;
 my @tracks = map {
-    SpiWireTrack->new("file:///music/$_.flac", "/music/$_.flac")
-} @names;
+    SpiWireTrack->new("file:///test/$_" . '.flac', $actual_paths[$_])
+} 0..$#names;
 my $bundle = Plugins::EssentiaGuidance::SpiResourceBundle::assemble_research_bundle(
-    research_only => 1, directory => $dir,
+    research_only => 1, verify_audio_content => 1, directory => $dir,
     bliss_db => $bliss_path, feature_db => $features_path,
-    media_dirs => ['/music'],
+    media_dirs => [$root_a, $root_b],
     anchors => [$tracks[0]], candidates => [@tracks[1,2]],
     model_id => 'genre', metric => 'affine_cosine_v1',
     expected_model_key => 'model-pin', job_id => 'native-fixture-job',
 );
+is($bundle->{audio_content_audit}{verified_count}, 3,
+    'native bundle attests all original audio bytes against scanner SHA256');
+is($bundle->{audio_content_audit}{music_root_count}, 2,
+    'native bundle supports two distinct, collision-free physical music roots');
+ok(!$bundle->{audio_content_audit}{generation_verified},
+    'content proof does not masquerade as a joint library generation');
 
 # Test-only process driver: the production Lyrion host still invokes this
 # binary exclusively through the shared Guidance SPI native host.
