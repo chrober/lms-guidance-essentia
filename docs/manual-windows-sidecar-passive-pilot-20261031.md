@@ -184,10 +184,14 @@ CI test coverage. GitHub Actions publishes a 7-day, native-binary-free
 staging ZIP. See the separate
 [isolated install/probe runbook](manual-passive-lms-plugin-staging-20261031.md).
 
-**Not yet tested:** install and plugin-manager registration inside a
-fully running Lyrion staging server, real `Slim::Schema::Track`
-objects, an actually Windows-analyzed and manually transferred
-feature cohort, and a Pi-native executable. These are explicit
-next validation gates. Normal host status must remain unavailable,
+**Real Lyrion 9.1.2 installation is now verified** in two disposable
+GitHub Actions Docker jobs: default-disabled plugin discovery, plus
+an explicitly enabled staging-only copy whose real LMS settings page
+shows the unavailable source-provenance reason. See the
+[real-server smoke evidence](real-lyrion-staging-smoke-20261031.md).
+**Still untested** are real `Slim::Schema::Track` objects, an actually
+Windows-analyzed and manually transferred feature cohort, a live DSTM
+call and a Pi-native executable. These are next acceptance gates.
+Normal host status must remain unavailable,
 there must be no automatic analysis at library updates or active
 playlist influence, and no research PR should merge prematurely.
