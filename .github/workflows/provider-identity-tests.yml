@@ -37,7 +37,7 @@ jobs:
           path: _native_provider
           persist-credentials: false
       - name: Build native SPI-v2 provider for real JSONL contract verification
-        run: cargo build --locked --manifest-path _native_provider/Cargo.toml --bin bliss-guidance-essentia
+        run: cargo build --manifest-path _native_provider/Cargo.toml --bin bliss-guidance-essentia
       - name: Verify provider-owned resources against the native SPI-v2 process
         env:
           ESSENTIA_NATIVE_SPI_BIN: ${{ github.workspace }}/_native_provider/target/debug/bliss-guidance-essentia
