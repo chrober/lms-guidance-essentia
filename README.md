@@ -1,5 +1,27 @@
 # Bliss Guidance: Essentia (Lyrion provider)
 
+## Manual Windows-sidecar passive SPI pilot (31 October 2026)
+
+The new provider-owned `ImportedSidecarPilot.pm` accepts a consistent
+manual Windows-to-Pi SQLite-v3 feature snapshot for a bounded
+one-seed/2–50-candidate offline research cohort. It checks exact Bliss
+file keys, one Pi music root, model fingerprint and file size,
+without decoding or hashing audio on the Pi. It supports genuinely
+unvalidated model heads **only with explicit experimental preview
+opt-in**, retains their unvalidated status, and emits unchanged
+SPI-v2 artifacts/resources and `signals=[]`.
+
+Real native JSONL integration tests are green. **This is not yet
+an installable Lyrion integration**: provider discovery remains
+unavailable, and the existing generic host currently drops
+`prepare.anchors` instead of forwarding them. The host transport
+gap must be corrected generically, without coupling BlissMixerLab
+to Essentia. The automated Lyrion scan integration remains deferred.
+
+See [pilot implementation, test evidence and remaining
+generic host limitation]
+(docs/manual-windows-sidecar-passive-pilot-20261031.md).
+
 ## First integration decision: Windows offline analysis, no LMS scan hook
 
 For the initial 65k+ music library, the user will run
