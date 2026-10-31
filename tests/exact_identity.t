@@ -12,6 +12,7 @@ use Test::More;
     package ExactTestTrack;
     sub new { my ($class, %data) = @_; bless \%data, $class }
     sub url { $_[0]->{url} }
+    sub urlmd5 { $_[0]->{urlmd5} }
     sub path { $_[0]->{path} }
     sub tracknum { $_[0]->{tracknum} }
 
@@ -39,7 +40,8 @@ require 'EssentiaGuidance/ExactIdentity.pm';
 
 my $module = 'Plugins::EssentiaGuidance::ExactIdentity';
 my $seed = ExactTestTrack->new(
-    url => 'file:///mnt/music/seed.flac', path => '/mnt/music/seed.flac'
+    url => 'file:///mnt/music/seed.flac', path => '/mnt/music/seed.flac',
+    urlmd5 => 'a' x 32,
 );
 my $unicode = ExactTestTrack->new(
     url => 'file:///mnt/music/Artist/Caf%C3%A9.flac',
@@ -86,6 +88,31 @@ is_deeply(
 my $mode = (stat($artifact->{path}))[2] & 0777;
 is($mode & 0077, 0, 'artifact inaccessible to group/other');
 
+# The existing SPI-v2 Last.fm-compatible route token is a distinct
+# identity from the Lyrion file URL. Its binding must be proven against
+# the actual host-owned source track, not merely asserted by a provider.
+my $host_seed = {
+    anchor_id => 'seed-1',
+    candidate_id => $seed->url,
+    lms_urlmd5 => $seed->urlmd5,
+};
+my $routed = Plugins::EssentiaGuidance::ExactIdentity::write_artifact(
+    %args, seed_anchor_binding => $host_seed,
+);
+open my $rfh, '<:raw', $routed->{path} or die $!;
+my $routed_bytes = do { local $/; <$rfh> };
+close $rfh;
+my $routed_rows = JSON::PP->new->utf8->decode($routed_bytes)->{tracks};
+is_deeply(
+    [map { $_->{track_id} } @$routed_rows],
+    ['seed-1', $unicode->url, $cue->url],
+    'verified host route ID is pinned for the first seed without changing candidate URLs',
+);
+is_deeply([map { $_->{track_file} } @$routed_rows], \@keys,
+    'host route token binding retains exactly verified original source file keys');
+is(sha256_hex($routed_bytes), $routed->{sha256},
+    'route-token artifact remains immutable and SHA-256 integrity-addressed');
+
 sub rejects {
     my ($name, %overrides) = @_;
     my %actual = (%args, %overrides);
@@ -98,6 +125,22 @@ sub rejects {
     return;
 }
 
+rejects('forged host route URL cannot bind to a different source',
+    seed_anchor_binding => { %$host_seed, candidate_id => $unicode->url });
+rejects('forged Lyrion urlmd5 cannot bind to a real seed',
+    seed_anchor_binding => { %$host_seed, lms_urlmd5 => 'b' x 32 });
+rejects('missing host route hash is rejected',
+    seed_anchor_binding => { anchor_id => 'seed-1', candidate_id => $seed->url });
+rejects('synthetic identity pretending to be a file URL is rejected',
+    seed_anchor_binding => { %$host_seed, anchor_id => $seed->url });
+rejects('unsafe zero-index seed route is rejected',
+    seed_anchor_binding => { %$host_seed, anchor_id => 'seed-0' });
+rejects('noncanonical route token with traversal is rejected',
+    seed_anchor_binding => { %$host_seed, anchor_id => '../seed-1' });
+rejects('the host cannot bind a different seed object merely by copying its URL',
+    anchors => [ExactTestTrack->new(
+        url => $seed->url, path => '/mnt/music/seed.flac', urlmd5 => 'b' x 32)],
+    seed_anchor_binding => $host_seed);
 rejects('missing feature row fails closed',
     verify_key => sub { $_[0] ne 'Artist/Café.flac' && $verify->($_[0]) });
 rejects('missing Bliss row fails closed',
