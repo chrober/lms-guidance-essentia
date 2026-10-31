@@ -132,6 +132,13 @@ sub rejects {
     return;
 }
 
+rejects('route token cannot mask duplicate original seed URL with a different file key',
+    seed_anchor_binding => $host_seed,
+    candidates => [
+        ExactTestTrack->new(url => $seed->url,
+            path => '/mnt/music/Artist/Café.flac'),
+        $cue,
+    ]);
 rejects('forged host route URL cannot bind to a different source',
     seed_anchor_binding => { %$host_seed, candidate_id => $unicode->url });
 rejects('forged Lyrion urlmd5 cannot bind to a real seed',
