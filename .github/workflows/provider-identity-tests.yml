@@ -1,0 +1,31 @@
+name: Provider-owned identity and bounded SQLite tests
+
+on:
+  pull_request:
+    paths:
+      - 'EssentiaGuidance/**'
+      - 'tests/**'
+      - '.github/workflows/provider-identity-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: identity-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  provider-helpers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install offline Perl SQLite dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libdbi-perl libdbd-sqlite3-perl
+      - name: Verify provider-owned read-only identity and bounded projection
+        run: |
+          mkdir -p Plugins
+          ln -s ../EssentiaGuidance Plugins/EssentiaGuidance
+          prove -lv tests/exact_identity.t tests/exact_identity_sqlite.t tests/bounded_snapshot.t
