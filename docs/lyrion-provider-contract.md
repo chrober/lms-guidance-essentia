@@ -15,7 +15,7 @@ See [full 31 October architecture and safety gates]
 (provider-owned-spi-shadow-20261031.md). Existing historical host-resolver
 notes below are design context, not permission to couple Lab to Essentia.
 
-**Status (30 Oct 2026): Lyrion plugin remains architecture-only — no Plugin.pm, Settings.pm, Perl registration, packaged binary or release. The separate native [bliss-guidance-essentia Draft PR #1](https://github.com/chrober/bliss-guidance-essentia/pull/1) now implements a real research-only SPI v2 JSONL process and SQLite-v3 shadow comparisons with zero active signals. Current Lab SPI candidate metadata (`database_file => undef`) is insufficient for exact sidecar mapping; host resolver/artifact generation remains an explicit prerequisite.**
+**Status (31 Oct 2026): research-only `Plugin.pm`/`Provider.pm` discovery facade implemented, but no install manifest, Settings.pm, usable native config factory, packaged binary or release. The separate native [bliss-guidance-essentia Draft PR #1](https://github.com/chrober/bliss-guidance-essentia/pull/1) now implements a real research-only SPI v2 JSONL process and SQLite-v3 shadow comparisons with zero active signals. Current Lab SPI candidate metadata (`database_file => undef`) is insufficient for exact sidecar mapping; host resolver/artifact generation remains an explicit prerequisite.**
 
 ## Stable dependency boundary
 
@@ -68,3 +68,24 @@ Native binary package provenance and individual third-party Essentia/ONNX licens
 ### Integration status update — executable native provider exists, but is not yet usable by Lyrion
 
 The native provider now implements `describe → prepare → score → close` against the canonical version-pinned SPI crate with a trusted SHA-256-bound exact-key identity artifact and read-only SQLite v3 source. The `essentia_experimental_shadow` channel advertises no active host policy; **all scores return `signals=[]`**, and aggregate-only diagnostics distinguish full evaluated shadow batches from neutral fallback. It is not yet a scored player plugin, and neither BlissMixerLab nor Better Call Bliss currently supplies the required exact identity artifact; `lms_urlmd5` alone is not an exact `feature_tracks.track_file`. The next Lyrion implementation should reference the existing provider kit, make the provider disabled-by-default/unavailable until identities and package exist, and add tests proving no playlist/queue changes. Never mark a provider installed or ready merely because the native Rust binary compiles.
+
+### SPI-only provider implementation update — 31 October 2026
+
+The branch now contains a normal provider-kit-style `Plugin.pm` and
+`Provider.pm`. They declare existing SPI-v2 artifact/resource types and a
+research channel with **no active host control**. The provider's status is
+unconditionally `available=0`, reason
+`source_generation_and_root_provenance_unverified`; its native config
+factory fails closed even for fabricated trusted-context flags. This is
+**not an installable Lyrion plugin**: no `install.xml` or user settings UI.
+
+`SpiResourceBundle.pm` combines exact identity and a bounded readonly
+SQLite-v3 projection for **offline research-only** use. The actual native
+Rust SPI-v2 process accepted the resulting immutable identity artifact,
+model-specific SQLite resource, flattened anchor and bounded candidate pool
+and returned only `signals=[]`. See
+[passing 106-test workflow](https://github.com/chrober/lms-guidance-essentia/actions/runs/41197043974).
+
+The ability to execute a synthetic end-to-end SPI session does not meet
+the source-generation or multi-root trust requirements for live Lyrion
+activation; the provider remains unavailable until these are proven.
