@@ -73,11 +73,53 @@ sub write_artifact {
         push @tracks, { track_id => $id, track_file => $key };
     }
 
+    return _emit_artifact(\@tracks, $job_id, $directory);
+}
+
+# Offline-only bridge from the stronger, independently audited content proof.
+# Do not accept caller assertions as production attestation: the public
+# Provider factory remains unavailable until a joint generation witness exists.
+sub write_content_attested_artifact {
+    my (%args) = @_;
+    die 'content audit requires explicit offline research opt-in'
+        unless defined($args{research_only}) && !ref($args{research_only})
+            && "$args{research_only}" eq '1';
+    my $proof = $args{proof};
+    die 'complete content-audited cohort required'
+        unless ref($proof) eq 'HASH'
+            && ($proof->{kind} || '') eq 'essentia-audio-content-cohort-v1'
+            && ref($proof->{tracks}) eq 'ARRAY'
+            && defined($proof->{verified_count})
+            && $proof->{verified_count} == @{$proof->{tracks}};
+    return _emit_artifact($proof->{tracks}, $args{job_id}, $args{directory});
+}
+
+sub _emit_artifact {
+    my ($tracks, $job_id, $directory) = @_;
+    die 'complete bounded cohort required'
+        unless ref($tracks) eq 'ARRAY' && @$tracks >= 3 && @$tracks <= 51;
+    die 'valid job ID required'
+        unless defined($job_id) && !ref($job_id)
+            && $job_id =~ /\A[A-Za-z0-9._:-]{1,128}\z/;
+    die 'trusted artifact directory required'
+        unless defined($directory) && !ref($directory)
+            && -d $directory && !-l $directory;
+    my (%ids, %keys);
+    for my $row (@$tracks) {
+        die 'invalid verified row' unless ref($row) eq 'HASH';
+        my ($id, $key) = @$row{qw(track_id track_file)};
+        die 'duplicate/unsafe verified row'
+            unless defined($id) && !ref($id) && length($id) <= 4096
+                && $id =~ /\Afile:\/\//i && index($id, "\0") < 0
+                && defined($key) && !ref($key) && length($key)
+                && length($key) <= 4096 && index($key, "\0") < 0
+                && $key !~ m{(?:\A|/)\.\.?(?:/|\z)}
+                && $key !~ m{//} && $key !~ m{\A/}
+                && !$ids{$id}++ && !$keys{$key}++;
+    }
     my $bytes = JSON::PP->new->canonical->utf8->encode({
         schema => 'essentia-exact-track-keys-v1',
-        schema_version => 1,
-        job_id => $job_id,
-        tracks => \@tracks,
+        schema_version => 1, job_id => $job_id, tracks => $tracks,
     });
     die 'identity artifact exceeds provider limit' if length($bytes) > 256 * 1024;
 
@@ -94,11 +136,8 @@ sub write_artifact {
         unlink($path);
         die 'cannot write identity artifact';
     }
-    return {
-        kind => 'essentia-exact-track-keys-v1',
-        path => $path,
-        sha256 => sha256_hex($bytes),
-    };
+    return { kind => 'essentia-exact-track-keys-v1',
+             path => $path, sha256 => sha256_hex($bytes) };
 }
 
 sub _exact_file_key {
