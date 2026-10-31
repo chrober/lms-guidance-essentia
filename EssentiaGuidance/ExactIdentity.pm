@@ -99,7 +99,12 @@ sub write_artifact {
         die 'duplicate track identity' if $seen_ids{$id}++;
         die 'ambiguous track key' if $seen_keys{$key}++;
         die 'unverified exact feature identity' unless $verify->($key);
-        push @tracks, { track_id => $id, track_file => $key };
+        push @tracks, {
+            track_id => $id, track_file => $key,
+            ($index == 0 && $seed_binding
+                ? (source_url => $seed_binding->{candidate_id},
+                   lms_urlmd5 => $seed_binding->{lms_urlmd5}) : ()),
+        };
         $index++;
     }
 
@@ -145,6 +150,20 @@ sub _emit_artifact {
         my $verified_host_token = $bound_seed_alias && $row_index == 0
             && defined($id) && !ref($id)
             && $id =~ /\Aseed-[1-9][0-9]{0,5}\z/;
+        # Route-alias provenance must survive inside the SHA-256-pinned
+        # artifact so the independent native process can recheck that
+        # anchor.candidate_id and lms_urlmd5 really belong to seed-N.
+        die 'unverified original seed identity in artifact'
+            if $verified_host_token && (
+                !defined($row->{source_url}) || ref($row->{source_url})
+                || $row->{source_url} !~ /\Afile:\/\//i
+                || length($row->{source_url}) > 4096
+                || !defined($row->{lms_urlmd5}) || ref($row->{lms_urlmd5})
+                || $row->{lms_urlmd5} !~ /\A[a-f0-9]{32}\z/i
+            );
+        die 'unbound source assertion in non-anchor row'
+            if !$verified_host_token
+                && (exists $row->{source_url} || exists $row->{lms_urlmd5});
         die 'duplicate/unsafe verified row'
             unless defined($id) && !ref($id) && length($id) <= 4096
                 && ($source_url || $verified_host_token)
