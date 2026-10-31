@@ -1,5 +1,30 @@
 # Bliss Guidance: Essentia (Lyrion provider)
 
+## Read-only catalog fingerprint and root-map freshness — 31 October 2026
+
+`EssentiaGuidance/CatalogFingerprint.pm` now creates a deterministic
+bounded digest of every eligible `TracksV2.File` plus an explicit
+root-ID / canonical-host-root mapping. Its `assert_fresh()` method
+reopens Bliss in a **new** readonly SQLite transaction, so a concurrent
+rescan or changed host roots invalidate the previous fingerprint
+instead of being hidden by the original pinned WAL snapshot.
+
+Optional offline-only `SpiResourceBundle` `catalog_roots` admission
+requires full-file SHA-256 content audit, verifies exact configured
+root ownership, and rechecks the full catalog before returning its
+existing SPI-v2 resource envelope. An additional recheck after the
+native process can detect a catalog change during the session.
+
+[Final CI](https://github.com/chrober/lms-guidance-essentia/actions/runs/41200038531)
+passes **136 Perl + 20 actual native SPI tests**, including a deliberate
+catalog update after successful native scoring. **No authenticated
+Lyrion scan epoch or scanner-side root receipt exists yet**. Root IDs
+supplied to this offline test are not themselves authoritative; the
+provider stays unavailable and no full-catalog walk runs live.
+
+See [verified upstream scan event semantics and outstanding
+generation/root contract](docs/catalog-generation-and-root-contract-20261031.md).
+
 ## Offline content provenance across multiple roots — 31 October 2026
 
 The provider now has an optional **offline-only** SHA-256 source attestor:
