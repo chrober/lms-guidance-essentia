@@ -29,6 +29,7 @@ jobs:
             enable_local: true
     env:
       STAGING_ENABLED: ${{ matrix.enable_local }}
+      IMAGE: lmscommunity/lyrionmusicserver:9.1.2-stable@sha256:a8709abda8a80766274abeb44015189b7e050eb1a6372678dcb077eb8c3a1e21
     steps:
       - uses: actions/checkout@v4
       - name: Confirm research plugin has no native binaries
@@ -61,7 +62,7 @@ jobs:
           echo "PASS: disposable Lyrion config, empty music, staging plugin enabled only for testing: $STAGING_ENABLED"
       - name: Start genuine official Lyrion stable image, bound to loopback only
         run: |
-          docker pull lmscommunity/lyrionmusicserver:9.1.2-stable
+          docker pull "$IMAGE"
           docker run -d --name essentia-gh-smoke \
             -e HTTP_PORT=19092 -e TZ=Etc/UTC \
             -p 127.0.0.1:19092:19092/tcp \
@@ -69,7 +70,7 @@ jobs:
             -v "$STAGING/music:/music:ro" \
             -v "$STAGING/playlists:/playlist:rw" \
             --restart no \
-            lmscommunity/lyrionmusicserver:9.1.2-stable
+            "$IMAGE"
           echo 'No player/CLI discovery ports are published'
       - name: Verify real Lyrion server and plugin-manager discovery
         run: python3 scripts/ci_lyrion_staging_smoke.py
