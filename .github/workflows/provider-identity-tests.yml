@@ -28,7 +28,7 @@ jobs:
         run: |
           mkdir -p Plugins
           ln -s ../EssentiaGuidance Plugins/EssentiaGuidance
-          prove -lv tests/provider_spi_contract.t tests/exact_identity.t tests/exact_identity_sqlite.t tests/bounded_snapshot.t tests/spi_resource_bundle.t tests/source_provenance.t tests/catalog_fingerprint.t tests/imported_sidecar_pilot.t
+          prove -lv tests/installed_layout.t tests/passive_probe_contract.t tests/provider_spi_contract.t tests/exact_identity.t tests/exact_identity_sqlite.t tests/bounded_snapshot.t tests/spi_resource_bundle.t tests/source_provenance.t tests/catalog_fingerprint.t tests/imported_sidecar_pilot.t
       - name: Checkout pinned independent native SPI-v2 provider (test only)
         uses: actions/checkout@v4
         with:
