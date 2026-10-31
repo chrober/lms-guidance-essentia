@@ -36,13 +36,13 @@ my @roots = (
     {root_id => 'speaker-room-a', host_path => $music_a},
     {root_id => 'speaker-room-b', host_path => $music_b},
 );
-sub compute {
+my $compute = sub {
     my (%override) = @_;
     return Plugins::EssentiaGuidance::CatalogFingerprint::snapshot(
         research_only => 1, bliss_dbh => $read, roots => \@roots, %override,
     );
-}
-my $first = compute();
+};
+my $first = $compute->();
 is($first->{kind}, 'essentia-bliss-catalog-fingerprint-v1',
     'exact versioned content fingerprint, no invented host generation');
 is($first->{eligible_tracks}, 3, 'ignored tracks excluded from catalog');
@@ -51,7 +51,7 @@ is($first->{generation_verified}, 0, 'content fingerprint never claims a Lyrion 
 for my $key (qw(catalog_sha256 host_root_map_sha256 fingerprint_sha256)) {
     like($first->{$key}, qr/\A[a-f0-9]{64}\z/, "$key is a SHA256 fingerprint");
 }
-my $same = compute(roots => [reverse @roots]);
+my $same = $compute->(roots => [reverse @roots]);
 is($first->{fingerprint_sha256}, $same->{fingerprint_sha256},
     'root order does not change stable fingerprint');
 my $fresh = Plugins::EssentiaGuidance::CatalogFingerprint::assert_fresh(
@@ -62,7 +62,7 @@ is($fresh->{fingerprint_sha256}, $first->{fingerprint_sha256},
 
 # A separate writer commits during the first pinned read transaction.
 $w->do('INSERT INTO TracksV2 VALUES (?,0)', undef, 'Artist/New.flac');
-is(compute()->{fingerprint_sha256}, $first->{fingerprint_sha256},
+is($compute->()->{fingerprint_sha256}, $first->{fingerprint_sha256},
     'old WAL snapshot is stable and therefore not a freshness proof');
 my $stale = eval {
     Plugins::EssentiaGuidance::CatalogFingerprint::assert_fresh(
@@ -73,7 +73,7 @@ ok(!$stale, 'fresh second SQLite transaction detects a concurrent catalog change
 $read->do('ROLLBACK');
 $read->disconnect;
 $read = Plugins::EssentiaGuidance::BoundedSnapshot::open_source($db_path);
-my $second = compute();
+my $second = $compute->();
 is($second->{eligible_tracks}, 4, 'new pinned snapshot sees the new catalog');
 my $root_changed = eval {
     Plugins::EssentiaGuidance::CatalogFingerprint::assert_fresh(
@@ -95,17 +95,17 @@ for my $test (
     [{root_id => 'a', host_path => $music_a},
      {root_id => 'b', host_path => $music_a}],
 ) {
-    my $ok = eval { compute(roots => $test); 1 };
+    my $ok = eval { $compute->(roots => $test); 1 };
     ok(!$ok, 'ambiguous, duplicate or noncanonical host roots rejected');
 }
 for my $params (
     {max_tracks => 1}, {max_catalog_bytes => 10},
     {max_catalog_bytes => 256 * 1024 * 1024 + 1},
 ) {
-    my $ok = eval { compute(%$params); 1 };
+    my $ok = eval { $compute->(%$params); 1 };
     ok(!$ok, 'bounded catalog I/O and memory limits reject oversize inputs');
 }
-my $disabled = eval { compute(research_only => 0); 1 };
+my $disabled = eval { $compute->(research_only => 0); 1 };
 ok(!$disabled, 'manual research opt-in required');
 my $write_handle = eval {
     Plugins::EssentiaGuidance::CatalogFingerprint::snapshot(
@@ -120,7 +120,7 @@ $read->do('ROLLBACK');
 $read->disconnect;
 $w->do('INSERT INTO TracksV2 VALUES (?,0)', undef, 'Artist/A.flac');
 $read = Plugins::EssentiaGuidance::BoundedSnapshot::open_source($db_path);
-my $duplicate = eval { compute(); 1 };
+my $duplicate = eval { $compute->(); 1 };
 ok(!$duplicate, 'duplicate exact eligible keys fail as an entire snapshot');
 $read->do('ROLLBACK');
 $read->disconnect;
