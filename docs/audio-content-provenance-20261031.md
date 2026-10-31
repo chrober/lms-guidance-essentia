@@ -107,6 +107,20 @@ analysis. A scanner-side before/after file-stability check (or stronger
 same-descriptor evidence) is a separate hardening requirement before
 claiming complete source-to-feature provenance.
 
+### Scanner-side stability improvement under review
+
+[essentia-analyser Draft PR #6](https://github.com/chrober/essentia-analyser/pull/6)
+introduces a pre-decode streaming SHA-256 and compares it to the
+original-file hash already stored after decoding, with metadata/identity
+checks before persistence for serial and parallel scans. It has **not**
+been merged or deployed. Existing cached feature rows cannot be assumed
+to have been generated with this guard, and the v3 schema does not
+currently identify guarded versus legacy rows.
+
+Even for newly guarded rows the check is not an atomic audio-file
+snapshot, and standalone host catalogue/scan-generation equality remains
+unproven. The provider must not become available solely because scanner
+PR #6 passes CI.
 **Production gate stays closed.** A later provider-controlled scan
 generation / root-map witness, or another explicitly reviewed per-track
 freshness contract, must be built with the scanner and host before the
