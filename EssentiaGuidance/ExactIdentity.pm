@@ -86,10 +86,12 @@ sub write_artifact {
     die 'trusted artifact directory required'
         unless defined($directory) && -d $directory;
 
-    my (%seen_ids, %seen_keys, @tracks);
+    my (%seen_ids, %seen_source_urls, %seen_keys, @tracks);
     my $index = 0;
     for my $track (@$anchors, @$candidates) {
         my ($id, $key) = _exact_file_key($track, $roots, $windows);
+        # A route token must never mask a duplicate original Lyrion URL.
+        die 'duplicate original source identity' if $seen_source_urls{$id}++;
         if ($index == 0 && $seed_binding) {
             # Preserve only the verified route token as the pinned artifact
             # key. The actual song URL is carried separately in the SPI
