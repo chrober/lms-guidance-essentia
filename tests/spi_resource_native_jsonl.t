@@ -168,27 +168,28 @@ unlike($output, qr/file:\/\/|\/music\/|model-pin|\.flac/,
 ok(!Plugins::EssentiaGuidance::Provider::guidance_provider_status_v1()->{available},
     'test-only exchange does not activate actual Lyrion provider');
 
+require 'EssentiaGuidance/CatalogFingerprint.pm';
+my @catalog_roots = (
+    {root_id => 'host-root-a', host_path => $root_a},
+    {root_id => 'host-root-b', host_path => $root_b},
+);
+my $verified_before_update = Plugins::EssentiaGuidance::CatalogFingerprint::assert_fresh(
+    research_only => 1, bliss_db => $bliss_path,
+    roots => \@catalog_roots, expected => $bundle->{catalog_fingerprint},
+);
+is($verified_before_update->{eligible_tracks}, 3,
+    'post-native SPI fresh snapshot confirms unchanged initial full catalog');
 # Reopen after a separate catalog update: original admission cannot be
 # misrepresented as still current, even though the native SPI succeeded.
 my $writer = DBI->connect("dbi:SQLite:dbname=$bliss_path", '', '',
     {RaiseError => 1, AutoCommit => 1});
 $writer->do('INSERT INTO TracksV2 VALUES (?,0)', undef, 'late-catalog-entry.flac');
 $writer->disconnect;
-require 'EssentiaGuidance/CatalogFingerprint.pm';
 my $post_run = eval {
     Plugins::EssentiaGuidance::CatalogFingerprint::assert_fresh(
         research_only => 1, bliss_db => $bliss_path,
-        roots => [
-            {root_id => 'host-root-a', host_path => $root_a},
-            {root_id => 'host-root-b', host_path => $root_b},
-        ],
-        expected => {
-            kind => $bundle->{catalog_fingerprint}{kind},
-            fingerprint_sha256 => $bundle->{catalog_fingerprint}{fingerprint_sha256},
-            catalog_sha256 => '0' x 64,
-            host_root_map_sha256 => '0' x 64,
-            eligible_tracks => 3,
-        },
+        roots => \@catalog_roots,
+        expected => $bundle->{catalog_fingerprint},
     );
     1;
 };
