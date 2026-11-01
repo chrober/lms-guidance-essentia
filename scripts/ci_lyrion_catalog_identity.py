@@ -102,7 +102,7 @@ def verify(evidence):
         raise RuntimeError("disposable server did not accept isolated /music root")
     rpc(["rescan"])
 
-    deadline = time.monotonic() + 180
+    deadline = time.monotonic() + 120
     last_observation = "no catalog rows yet"
     while time.monotonic() < deadline:
         try:
@@ -112,14 +112,17 @@ def verify(evidence):
             if (len(rows) == len(BASENAMES)
                     and set(rows) == set(BASENAMES)
                     and str(result.get("rescan", "0")) not in ("1", "true")):
-                # Verify each Lyrion ID resolves back to that same URL.
+                # The same documented catalog query supports an exact
+                # track_id filter. Query each ID independently; do not
+                # assume songinfo has the same JSON-RPC nesting as songs.
                 for filename, row in rows.items():
-                    detail = rpc(["songinfo", 0, 30,
-                                  "track_id:" + str(row["lms_track_id"]), "tags:uf"])
-                    urls = [str(value) for key, value in detail.items()
-                            if key == "url" or key == "_url"]
-                    if row["source_url"] not in urls:
-                        raise ValueError("Lyrion track ID lookup did not preserve " + filename)
+                    detail = rpc(["songs", 0, 2,
+                                  "track_id:" + str(row["lms_track_id"]), "tags:u"])
+                    lookup = read_track_rows(detail)
+                    if (list(lookup) != [filename]
+                            or lookup[filename]["lms_track_id"] != row["lms_track_id"]
+                            or lookup[filename]["source_url"] != row["source_url"]):
+                        raise ValueError("filtered Lyrion ID/URL roundtrip failed for " + filename)
                 proof = {"schema": "lyrion-real-catalog-identity-v1",
                          "origin": "isolated-github-actions-lyrion-9.1.2",
                          "kind": "synthetic-audio-real-lms-catalog",
@@ -138,7 +141,7 @@ def verify(evidence):
         except (OSError, ValueError, TimeoutError) as exc:
             last_observation = type(exc).__name__ + ": " + str(exc)
         time.sleep(3)
-    raise RuntimeError("real Lyrion catalog not ready within 180s (" +
+    raise RuntimeError("real Lyrion catalog not ready within 120s (" +
                        last_observation + ")")
 
 
