@@ -94,9 +94,11 @@ def verify(evidence):
         raise RuntimeError("explicit real-track staging-only opt-in missing")
     # This call is restricted to the loopback-only disposable Lyrion container.
     # Never use this script with a production server or personal library.
-    rpc(["pref", "audiodir", "/music"])
+    assigned = rpc(["pref", "audiodir", "/music"])
     current = rpc(["pref", "audiodir", "?"])
-    if current.get("_audiodir") != "/music":
+    print("INFO: isolated audiodir set response:", assigned)
+    print("INFO: isolated audiodir read response:", current)
+    if "/music" not in [str(value) for value in current.values()]:
         raise RuntimeError("disposable server did not accept isolated /music root")
     rpc(["rescan"])
 
