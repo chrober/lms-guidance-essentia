@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<extension>
+  <id>6cc94d2e-819a-45e3-9d2e-569dd7e35565</id>
+  <name>PLUGIN_ESSENTIAGUIDANCE_NAME</name>
+  <module>Plugins::EssentiaGuidance::Plugin</module>
+  <version>0.1.0</version>
+  <description>PLUGIN_ESSENTIAGUIDANCE_DESC</description>
+  <creator>Christoph O'Bermair</creator>
+  <!-- Intentionally not auto-enabled on any platform. -->
+  <defaultState>
+    <mac>disabled</mac>
+    <win>disabled</win>
+    <other>disabled</other>
+  </defaultState>
+  <homepageURL>https://github.com/chrober/lms-guidance-essentia</homepageURL>
+  <type>2</type>
+  <targetApplication>
+    <id>Logitech Media Server</id>
+    <minVersion>8.5</minVersion>
+    <maxVersion>*</maxVersion>
+  </targetApplication>
+</extension>

@@ -1,0 +1,20 @@
+PLUGIN_ESSENTIAGUIDANCE_NAME
+	EN	Bliss Guidance: Essentia (research)
+
+PLUGIN_ESSENTIAGUIDANCE_DESC
+	EN	Experimental, read-only Essentia Guidance provider shell; no active music selection
+
+PLUGIN_ESSENTIAGUIDANCE_NOTE
+	EN	This plugin is a research-only, passive installation. It cannot change Bliss candidate ranking or the current playlist. Native Guidance remains unavailable in normal hosting until provenance gates are completed. Do not enable this plugin on your production server for the current experiments.
+
+PLUGIN_ESSENTIAGUIDANCE_STATUS
+	EN	Native provider status
+
+PLUGIN_ESSENTIAGUIDANCE_STATUS_UNAVAILABLE
+	EN	Unavailable for live scoring (%s).
+
+PLUGIN_ESSENTIAGUIDANCE_PILOT
+	EN	A separately authorized offline probe can exercise a small, read-only imported SQLite feature cohort. There is no web button to run the probe and no automatic audio analysis.
+
+DEBUG_PLUGIN_ESSENTIAGUIDANCE
+	EN	Bliss Guidance: Essentia (research)

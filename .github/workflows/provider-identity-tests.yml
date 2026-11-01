@@ -1,0 +1,85 @@
+name: Provider-owned identity and bounded SQLite tests
+
+on:
+  pull_request:
+    paths:
+      - 'EssentiaGuidance/**'
+      - 'tests/**'
+      - '.github/workflows/provider-identity-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: identity-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  provider-helpers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install offline Perl SQLite dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libdbi-perl libdbd-sqlite3-perl
+      - name: Verify provider-owned read-only identity and bounded projection
+        run: |
+          mkdir -p Plugins
+          ln -s ../EssentiaGuidance Plugins/EssentiaGuidance
+          prove -lv tests/installed_layout.t tests/passive_probe_contract.t tests/provider_spi_contract.t tests/exact_identity.t tests/exact_identity_sqlite.t tests/bounded_snapshot.t tests/spi_resource_bundle.t tests/source_provenance.t tests/catalog_fingerprint.t tests/imported_sidecar_pilot.t
+      - name: Checkout pinned independent native SPI-v2 provider (test only)
+        uses: actions/checkout@v4
+        with:
+          repository: chrober/bliss-guidance-essentia
+          ref: ed9443725b9112203cb10d72a3efd65de79859ed
+          path: _native_provider
+          persist-credentials: false
+      - name: Checkout corrected generic SPI-v2 Perl host (research PR SHA only)
+        uses: actions/checkout@v4
+        with:
+          repository: chrober/lms-bliss-guidance-host
+          ref: d05a043bf5fa74e2e166fa9c8be8d15761f353f7
+          path: _shared_host
+          persist-credentials: false
+      - name: Checkout pinned generic Lab seed helper (research Draft PR only)
+        uses: actions/checkout@v4
+        with:
+          repository: chrober/lms-blissmixer-lab
+          ref: ff67f7c591d4f3b2e78dc1d8fd9179b1a9456e1f
+          path: _lab_seed_adapter
+          persist-credentials: false
+      - name: Build native SPI-v2 provider for real JSONL contract verification
+        run: cargo build --manifest-path _native_provider/Cargo.toml --bin bliss-guidance-essentia
+      - name: Verify provider-owned resources against the native SPI-v2 process
+        env:
+          ESSENTIA_NATIVE_SPI_BIN: ${{ github.workspace }}/_native_provider/target/debug/bliss-guidance-essentia
+          ESSENTIA_SHARED_HOST_SRC: ${{ github.workspace }}/_shared_host
+          ESSENTIA_LAB_ADAPTER_SRC: ${{ github.workspace }}/_lab_seed_adapter
+        run: prove -lv tests/discovery_staging.t tests/spi_resource_native_jsonl.t tests/imported_sidecar_pilot.t
+
+  stage-passive-plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package only the staging LMS plugin shell (no native binaries)
+        run: |
+          test -f EssentiaGuidance/install.xml
+          test -f EssentiaGuidance/Settings.pm
+          test -f EssentiaGuidance/Bin/SOURCE.md
+          if find EssentiaGuidance/Bin -type f ! -name SOURCE.md | grep -q .; then
+            echo 'Unexpected native binaries in staging plugin source' >&2
+            exit 1
+          fi
+          mkdir -p _stage/Plugins
+          cp -a EssentiaGuidance _stage/Plugins/EssentiaGuidance
+          (cd _stage && zip -q -r ../essentia-guidance-passive-staging.zip Plugins/EssentiaGuidance)
+          unzip -l essentia-guidance-passive-staging.zip
+      - name: Publish short-lived staging artifact only
+        uses: actions/upload-artifact@v4
+        with:
+          name: essentia-guidance-passive-staging
+          path: essentia-guidance-passive-staging.zip
+          retention-days: 7
+          if-no-files-found: error

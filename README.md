@@ -1,2 +1,195 @@
-# lms-guidance-essentia
-Lyrion Music Server plugin providing Essentia similarity guidance to Bliss-compatible hosts
+# Bliss Guidance: Essentia (Lyrion provider)
+
+## Staging-installable, passive-only plugin shell — 31 October 2026
+
+The research branch now contains a **standard Lyrion plugin layout**:
+`EssentiaGuidance/install.xml`, `Plugin.pm`, `Provider.pm`,
+`Settings.pm`, `strings.txt`, `HTML/` and native binary
+provenance documentation in `Bin/SOURCE.md`. Installation defaults
+to **disabled on every platform**. Once manually enabled in an
+**isolated staging Lyrion**, the settings page only shows the
+unavailable status and has no execution controls.
+
+Crucially, normal Guidance discovery still returns
+`available=0` and the normal native config factory **always rejects**;
+the installed shell cannot alter playlist ranking. The separately
+authorized, local-only `EssentiaGuidance/PassiveProbe.pm` can run an
+explicit one-seed/2–50-candidate **manual research probe** through
+the existing generic SPI-v2 runtime. It requires real verified track
+objects, a manually copied SQLite-v3 sidecar and a pinned local
+native executable. It removes temporary private artifacts on both
+success and failure, and can only return `signals=[]`.
+
+**Real Lyrion 9.1.2 staging verification now passes:** the actual
+plugin manager lists Essentia while default-disabled; when enabled
+only in a disposable copy, the real server loads its status page
+and correctly displays the missing provenance witness.
+[Two-job real Lyrion CI](https://github.com/chrober/lms-guidance-essentia/actions/runs/41235274969).
+This is **not** a published LMS plugin release, real song/feature
+scoring, or an automatically enabled provider. No production Pi,
+model download, automatic scan or mixer scoring has been touched.
+
+See [staging installation and manual passive probe runbook]
+(docs/manual-passive-lms-plugin-staging-20261031.md).
+
+
+## Manual Windows-sidecar passive SPI pilot (31 October 2026)
+
+The new provider-owned `ImportedSidecarPilot.pm` accepts a consistent
+manual Windows-to-Pi SQLite-v3 feature snapshot for a bounded
+one-seed/2–50-candidate offline research cohort. It checks exact Bliss
+file keys, one Pi music root, model fingerprint and file size,
+without decoding or hashing audio on the Pi. It supports genuinely
+unvalidated model heads **only with explicit experimental preview
+opt-in**, retains their unvalidated status, and emits unchanged
+SPI-v2 artifacts/resources and `signals=[]`.
+
+The generic host now forwards existing SPI-v2 anchors on
+[Draft PR #1](https://github.com/chrober/lms-bliss-guidance-host/pull/1).
+Lab [stacked Draft PR #6](https://github.com/chrober/lms-blissmixer-lab/pull/6)
+reuses the working Last.fm seed builder to provide `seed-1`
+and the original source identity. The research-only imported-sidecar
+helper binds that route token to an independently verified Lyrion URL,
+32-hex `urlmd5`, exact Bliss key and model fingerprint. Both the
+Perl helper and independent native Rust SPI `prepare` enforce the
+SHA-256-pinned mapping; missing and forged identities fail closed.
+[Real generic-host → native SPI CI](https://github.com/chrober/lms-guidance-essentia/actions/runs/41217718930)
+passes. The plugin shell is **staging-installable but unavailable to the normal
+Guidance host** for real scoring, with `signals=[]`, no live Lab deployment and no
+automatic library-triggered scanning.
+
+See [pilot implementation, test evidence and remaining
+live-plugin limitation]
+(docs/manual-windows-sidecar-passive-pilot-20261031.md).
+
+## First integration decision: Windows offline analysis, no LMS scan hook
+
+For the initial 65k+ music library, the user will run
+`essentia-analyser` **manually on Windows** against a consistent
+Bliss catalog copy and Windows-readable music files. The Raspberry
+Pi 4B running Lyrion will **only read a manually transferred
+SQLite-v3 feature snapshot**. This process is independent of
+`rescan`, `library changed`, `lastscan` or playlist creation.
+Partial feature coverage is acceptable for the first passive
+SPI-v2 integration; missing rows remain neutral.
+
+**Separate gates:** an authenticated shared catalog generation and
+automatic library-triggered scan jobs are later concerns, not
+prerequisites for the first bounded passive research pilot.
+Real-host provider deployment still needs a verified source mapping
+and explicit research handling of unvalidated features, and the
+existing provider factory stays disabled until those are implemented.
+
+See [Windows-first offline SPI integration plan]
+(docs/windows-offline-first-spi-integration-20261031.md) and the
+[Windows manual scanner runbook]
+(https://github.com/chrober/essentia-analyser/blob/feat/scan-audio-stability-guard/docs/windows-manual-offline-scan-first-integration-20261031.md).
+
+## Read-only catalog fingerprint and root-map freshness — 31 October 2026
+
+`EssentiaGuidance/CatalogFingerprint.pm` now creates a deterministic
+bounded digest of every eligible `TracksV2.File` plus an explicit
+root-ID / canonical-host-root mapping. Its `assert_fresh()` method
+reopens Bliss in a **new** readonly SQLite transaction, so a concurrent
+rescan or changed host roots invalidate the previous fingerprint
+instead of being hidden by the original pinned WAL snapshot.
+
+Optional offline-only `SpiResourceBundle` `catalog_roots` admission
+requires full-file SHA-256 content audit, verifies exact configured
+root ownership, and rechecks the full catalog before returning its
+existing SPI-v2 resource envelope. An additional recheck after the
+native process can detect a catalog change during the session.
+
+[Final CI](https://github.com/chrober/lms-guidance-essentia/actions/runs/41200038531)
+passes **136 Perl + 20 actual native SPI tests**, including a deliberate
+catalog update after successful native scoring. **No authenticated
+Lyrion scan epoch or scanner-side root receipt exists yet**. Root IDs
+supplied to this offline test are not themselves authoritative; the
+provider stays unavailable and no full-catalog walk runs live.
+
+See [verified upstream scan event semantics and outstanding
+generation/root contract](docs/catalog-generation-and-root-contract-20261031.md).
+
+## Offline content provenance across multiple roots — 31 October 2026
+
+The provider now has an optional **offline-only** SHA-256 source attestor:
+
+- Reads the existing scanner SQLite-v3 `audio_sha256`, `feature_track_state`
+  and validated model fingerprint; hashes the actual full local audio files.
+- Accepts distinct music roots only when every chosen track has exactly
+  one owning root and no other configured root contains the same
+  relative scanner key.
+- A separate `verify_audio_content => 1` research mode composes this
+  proof into the existing bounded SQLite resource and SHA-256-bound
+  native SPI artifact. Full two-root `describe/prepare/score/close`
+  integration tests pass against the unchanged Rust binary.
+- **Never** interprets matching hashes as an authoritative shared
+  Lyrion/Essentia scan generation. Normal provider status remains
+  unavailable; full-file hashing is not permitted in a live mixer call.
+
+[Proof, negative tests, CI evidence and remaining requirements]
+(docs/audio-content-provenance-20261031.md).
+## Progress: discoverable API facade and SPI resource assembly
+
+Research implementation on Draft PR #1 now contains:
+
+- `EssentiaGuidance/Plugin.pm` and `Provider.pm`: ordinary Lyrion
+  `guidance_provider_*_v1` discovery and SPI-v2 metadata, based on the
+  existing provider kit. The provider **always reports unavailable**
+  (`source_generation_and_root_provenance_unverified`) and its native
+  configuration factory always rejects calls. No special host API exists.
+- `SpiResourceBundle.pm`: **offline research-only** composition of the
+  provider's exact-key verifier and bounded SQLite-v3 projection into
+  ordinary SPI `prepare.artifacts` and `prepare.resources`, with one
+  unchanged global seed, 2–50 host-admitted candidates and pinned model.
+  The caller owns temporary resource cleanup; no subprocess is started
+  by this module.
+- Contract and negative tests cover false trust flags, unverified roots,
+  missing features, strict resource bounds, source read-only behavior
+  and canonical JSONL transport with the independent native provider.
+
+The [native integration CI](https://github.com/chrober/lms-guidance-essentia/actions/runs/41197043974)
+passes 94 offline Perl tests and 12 true native SPI JSONL assertions, while
+preserving `signals=[]` and identical host-admitted candidate identities.
+
+**Historical checkpoint:** at that earlier point, no `install.xml` or
+settings UI existed. A staging-only install shell and status page have
+since been added, but there is still no release binary, authenticated
+source-generation proof, real live Guidance acquisition or active scoring.
+
+See [SPI-only provider ownership and gates]
+(docs/provider-owned-spi-shadow-20261031.md).
+
+## Architecture correction (31 October 2026)
+
+**BlissMixerLab is provider-neutral.** The Lyrion plugin in this repository,
+not the Lab host, owns Essentia-specific identity, root and source-generation
+verification as well as bounded read-only feature projection. The native
+provider is invoked **only through the existing Guidance SPI v2**; the
+Lab-owned direct Essentia subprocess and modules were deleted.
+
+This branch now contains experimental `EssentiaGuidance/ExactIdentity.pm`
+and `EssentiaGuidance/BoundedSnapshot.pm` with independent offline tests.
+**Historical checkpoint:** the provider originally lacked a plugin
+installation layout. That layout now exists for staging; the absent
+authoritative cross-database generation/root witness continues to block
+normal live Guidance use.
+
+See [provider-owned SPI and provenance contract]
+(docs/provider-owned-spi-shadow-20261031.md).
+
+**Status: Lyrion plugin is staging-installable but intentionally unavailable for normal scoring. The separate native [Essentia Guidance Draft PR #1](https://github.com/chrober/bliss-guidance-essentia/pull/1) now contains a real, tested, shadow-neutral SPI v2 executable. It emits no active Guidance signals and has not been packaged or connected to Lyrion hosts.**
+
+A research-only, staging-installable shell for a future live-capable passive Lyrion guidance provider, following the conventions of [`lms-guidance-lastfm`](https://github.com/chrober/lms-guidance-lastfm) and [`lms-guidance-library-signals`](https://github.com/chrober/lms-guidance-library-signals). It will expose an optional [`bliss-guidance-essentia`](https://github.com/chrober/bliss-guidance-essentia) native provider using the host-independent [`essentia-similarity`](https://github.com/chrober/essentia-similarity) engine to compatible Lyrion hosts: [BlissMixerLab](https://github.com/chrober/lms-blissmixer-lab) first, then [Better Call Bliss](https://github.com/chrober/lms-better-call-bliss).
+
+Lyrion hosts discover installed guidance providers, keep them opt-in, resolve trusted configuration and invoke native hosts implementing the [`bliss-playlist-guidance-spi`](https://github.com/chrober/bliss-playlist-guidance-spi) version 2. This plugin must **not** modify an already-playing queue, accept unauthorized database paths from browser input, fetch ONNX models during playback, or bypass Bliss admission/repeat/route constraints.
+
+This repository is the Lyrion configuration/packaging surface, **not the provider-side Rust scoring implementation**. Consult [integration and acceptance contract](docs/lyrion-provider-contract.md) before implementation. Start from [`lms-bliss-guidance-provider-kit`](https://github.com/chrober/lms-bliss-guidance-provider-kit) and the current working Library Signals provider rather than reinventing discovery or settings UI.
+
+## Current practical integration blocker
+
+Source inspection of `lms-blissmixer-lab/BlissMixerLab/GuidanceProviderAdapter.pm` (30 Oct 2026) confirms that the current SPI candidate envelope sets `database_file => undef`, while the available candidate identities include the LMS URL and `urlmd5`. Neither value is automatically the scanner sidecar's exact `feature_tracks.track_file`. The native provider now requires a trusted, host-created SHA-256-bound `essentia-exact-track-keys-v1` artifact with the exact source and candidate mappings. **This plugin must not claim availability until the host mapping is implemented.** See [native provider README](https://github.com/chrober/bliss-guidance-essentia/blob/feat/essentia-guidance-integration-design/README.md) and [Lyrion provider contract](docs/lyrion-provider-contract.md).
+
+## Offline feature producer ownership
+
+The **canonical** Rust offline scanner and original Essentia C++ worker are now maintained in [`chrober/essentia-analyser`](https://github.com/chrober/essentia-analyser) (extraction [PR #1 merged](https://github.com/chrober/essentia-analyser/pull/1)). It generates the precomputed versioned SQLite-v3 feature sidecar; no analysis binaries, ONNX models or upstream Essentia worker are launched at Guidance scoring time. [`chrober/bliss-mood-poc`](https://github.com/chrober/bliss-mood-poc) remains the **research/experimentation** repository for WP1/WP2/WP3 and historical scanner reproducibility. Actual third-party native release approval is still blocked by the producer's separate license gates.

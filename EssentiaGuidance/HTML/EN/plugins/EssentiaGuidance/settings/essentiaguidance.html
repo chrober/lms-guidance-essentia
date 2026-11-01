@@ -1,0 +1,10 @@
+[% PROCESS settings/header.html %]
+
+[% WRAPPER settingSection %]
+    <p>[% "PLUGIN_ESSENTIAGUIDANCE_NOTE" | string %]</p>
+    <h3>[% "PLUGIN_ESSENTIAGUIDANCE_STATUS" | string %]</h3>
+    <p>[% "PLUGIN_ESSENTIAGUIDANCE_STATUS_UNAVAILABLE" | string(provider_status.reason) %]</p>
+    <p>[% "PLUGIN_ESSENTIAGUIDANCE_PILOT" | string %]</p>
+[% END %]
+
+[% PROCESS settings/footer.html %]
