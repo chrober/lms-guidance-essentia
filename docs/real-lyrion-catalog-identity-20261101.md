@@ -26,7 +26,7 @@ and status-only unavailable page checks, `verify`:
    expected file URLs without a live scan flag.
 3. Demands positive, distinct, genuine Lyrion catalog IDs, lossless
    original `file://` URLs, canonical root-relative filename matches,
-   and roundtrips each ID through `songinfo`.
+   and roundtrips each ID with a second `songs` query filtered by `track_id`.
 4. Records a small JSON evidence file `catalog-identity.json`
    containing only the synthetic track URLs, catalog IDs and source
    paths. The result explicitly states that feature analysis and
