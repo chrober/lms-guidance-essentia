@@ -113,4 +113,8 @@ jobs:
         if: always()
         run: |
           docker rm -f essentia-gh-smoke || true
-          if [ -n "${STAGING:-}" ]; then rm -rf -- "$STAGING"; fi
+          case "${STAGING:-}" in
+            "$RUNNER_TEMP"/lyrion-essentia-*) sudo rm -rf -- "$STAGING" ;;
+            "") : ;;
+            *) echo "Refusing to remove unexpected staging path" >&2; exit 1 ;;
+          esac
