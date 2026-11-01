@@ -5,6 +5,7 @@ on:
     paths:
       - 'EssentiaGuidance/**'
       - 'scripts/ci_lyrion_staging_smoke.py'
+      - 'scripts/ci_lyrion_catalog_identity.py'
       - '.github/workflows/real-lyrion-staging-smoke.yml'
   workflow_dispatch:
 
@@ -25,10 +26,16 @@ jobs:
         include:
           - phase: disabled-by-default
             enable_local: false
+            track_catalog: false
           - phase: explicitly-enabled-staging-only
             enable_local: true
+            track_catalog: false
+          - phase: real-synthetic-track-catalog
+            enable_local: true
+            track_catalog: true
     env:
       STAGING_ENABLED: ${{ matrix.enable_local }}
+      STAGING_TRACK_CATALOG: ${{ matrix.track_catalog }}
       IMAGE: lmscommunity/lyrionmusicserver:9.1.2-stable@sha256:a8709abda8a80766274abeb44015189b7e050eb1a6372678dcb077eb8c3a1e21
     steps:
       - uses: actions/checkout@v4
@@ -60,6 +67,12 @@ jobs:
           chmod -R a+rX "$STAGING/config/cache/Plugins/EssentiaGuidance"
           chmod a+rwx "$STAGING/config" "$STAGING/config/cache" "$STAGING/config/cache/Plugins"
           echo "PASS: disposable Lyrion config, empty music, staging plugin enabled only for testing: $STAGING_ENABLED"
+      - name: Generate disposable original PCM music sources (real catalog job only)
+        if: matrix.track_catalog
+        run: |
+          python3 -m py_compile scripts/ci_lyrion_catalog_identity.py
+          python3 scripts/ci_lyrion_catalog_identity.py prepare "$STAGING/music"
+          chmod -R a+rX "$STAGING/music"
       - name: Start genuine official Lyrion stable image, bound to loopback only
         run: |
           docker pull "$IMAGE"
@@ -74,11 +87,18 @@ jobs:
           echo 'No player/CLI discovery ports are published'
       - name: Verify real Lyrion server and plugin-manager discovery
         run: python3 scripts/ci_lyrion_staging_smoke.py
+      - name: Scan disposable library and verify real Lyrion track IDs and URLs
+        if: matrix.track_catalog
+        run: |
+          python3 scripts/ci_lyrion_catalog_identity.py verify "$RUNNER_TEMP/lyrion-catalog-evidence.json"
       - name: Save bounded test evidence (always)
         if: always()
         run: |
           mkdir -p "$RUNNER_TEMP/essentia-lms-evidence"
           docker logs essentia-gh-smoke --tail 300 > "$RUNNER_TEMP/essentia-lms-evidence/container.log" 2>&1 || true
+          if [ -f "$RUNNER_TEMP/lyrion-catalog-evidence.json" ]; then
+            cp "$RUNNER_TEMP/lyrion-catalog-evidence.json" "$RUNNER_TEMP/essentia-lms-evidence/catalog-identity.json"
+          fi
           docker inspect essentia-gh-smoke --format '{{.State.Status}} {{.State.ExitCode}}' > "$RUNNER_TEMP/essentia-lms-evidence/container-state.txt" 2>&1 || true
           find "$STAGING/config" -maxdepth 4 -type f -name '*log*' -print | head -20 > "$RUNNER_TEMP/essentia-lms-evidence/log-file-list.txt" || true
       - name: Upload bounded logs for debugging
@@ -93,3 +113,4 @@ jobs:
         if: always()
         run: |
           docker rm -f essentia-gh-smoke || true
+          if [ -n "${STAGING:-}" ]; then rm -rf -- "$STAGING"; fi
